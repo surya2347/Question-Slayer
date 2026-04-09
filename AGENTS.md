@@ -12,6 +12,7 @@ Python 3.11 / Streamlit / LangGraph / ChromaDB / OpenAI / Plotly / uv
 - `core/` : graph.py(워크플로우), rag.py(검색), prompts.py(템플릿), utils.py(헬퍼)
 - `data/` : ncs_pdfs/(PDF), chroma_db/(벡터DB), user_profiles/(JSON)
 - `docs/plans/` : 기능별 상세 계획 문서
+- `.rules/` : 하위 AI 에이전트 규칙 문서
 
 ## 코딩 컨벤션
 - 파일명/폴더명: 영문 소문자 + 언더스코어, 한글·이모티콘 금지
