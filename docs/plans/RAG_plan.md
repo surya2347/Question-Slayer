@@ -84,7 +84,9 @@ EMPTY_SECTION_PLACEHOLDER: str = (
 )
 
 # NCS 문서 구조 감지용 정규식
-LEARNING_UNIT_PATTERN: str = r"학습\s*(\d+)\s*[:.·]\s*(.+)"
+# ⚠️ LEARNING_UNIT_PATTERN 은 실제 PDF 확인 후 수정됨 — 계획 대비 편차 발생.
+#    변경 내용 및 사유: ## 구현 기록 > 계획 대비 편차 섹션 참조.
+LEARNING_UNIT_PATTERN: str = r"학습\s*(\d+)\s*[:.·]\s*(.+)"  # 원본 (계획서 기준)
 SECTION_TYPE_PATTERN: str = r"(필요\s*지식|수행\s*내용|수행내용|필요지식)"
 # 다양한 대시 대응: 하이픈(-), 엔 대시(–), 엠 대시(—) + 공백 유연성
 SUBTITLE_PATTERN: str = r"(\d+\s*[-–—]\s*\d+\.?\s+.+)|([가-힣]\.\s+.+)"
@@ -417,24 +419,24 @@ OPENAI_API_KEY=sk-...   # 임베딩 API 호출용 (필수)
 
 ## 체크리스트
 
-- [ ] `pyproject.toml`에 `pandas`, `tabulate` 의존성 추가 + `uv sync`
-- [ ] `scripts/` 디렉토리 생성
-- [ ] `core/rag.py` — 상수/설정 정의 (`MIN_CHUNK_TOKENS`, `EMPTY_SECTION_PLACEHOLDER` 포함)
-- [ ] `core/rag.py` — `extract_pages()` 구현 (pdfplumber + 표 Markdown 변환)
-- [ ] `core/rag.py` — `merge_pages()` 구현
-- [ ] `core/rag.py` — `filter_noise()` 구현 (키워드 기반)
-- [ ] `core/rag.py` — `split_by_sections()` 구현 (NCS 소제목 패턴 + **짧은 섹션 병합** + **빈 섹션 플레이스홀더**)
-- [ ] `core/rag.py` — `refine_chunks()` 구현 (RecursiveCharacterTextSplitter + **표 행 분리 방지 세퍼레이터**)
-- [ ] `core/rag.py` — `get_embeddings()` 구현
-- [ ] `core/rag.py` — `store_chunks()` 구현 (Chroma.from_documents)
-- [ ] `core/rag.py` — `get_retriever()` 구현
-- [ ] `core/rag.py` — `compute_file_hash()` 구현 (SHA-256)
-- [ ] `core/rag.py` — `process_pdf()` 통합 파이프라인 구현 (**중복 적재 방지** 포함)
-- [ ] `scripts/chunk_and_embed.py` — 인터랙티브 CLI 구현
-- [ ] 테스트 PDF 1개로 전체 파이프라인 End-to-End 검증
-- [ ] 동일 PDF 재실행 시 `skipped` 상태 확인 (중복 방지 검증)
-- [ ] Retriever로 검색 쿼리 테스트 (콘솔 출력 확인)
-- [ ] 연관 문서 변경 (아래 섹션 참조)
+- [x] `pyproject.toml`에 `pandas`, `tabulate`, `tiktoken` 의존성 추가 + `uv sync`
+- [x] `scripts/` 디렉토리 생성
+- [x] `core/rag.py` — 상수/설정 정의 (`MIN_CHUNK_TOKENS`, `EMPTY_SECTION_PLACEHOLDER` 포함)
+- [x] `core/rag.py` — `extract_pages()` 구현 (pdfplumber + 표 Markdown 변환)
+- [x] `core/rag.py` — `merge_pages()` 구현
+- [x] `core/rag.py` — `filter_noise()` 구현 (키워드 기반)
+- [x] `core/rag.py` — `split_by_sections()` 구현 (NCS 소제목 패턴 + **짧은 섹션 병합** + **빈 섹션 플레이스홀더**)
+- [x] `core/rag.py` — `refine_chunks()` 구현 (RecursiveCharacterTextSplitter + **표 행 분리 방지 세퍼레이터**)
+- [x] `core/rag.py` — `get_embeddings()` 구현
+- [x] `core/rag.py` — `store_chunks()` 구현 (Chroma.from_documents)
+- [x] `core/rag.py` — `get_retriever()` 구현
+- [x] `core/rag.py` — `compute_file_hash()` 구현 (SHA-256)
+- [x] `core/rag.py` — `process_pdf()` 통합 파이프라인 구현 (**중복 적재 방지** 포함)
+- [x] `scripts/chunk_and_embed.py` — 인터랙티브 CLI 구현
+- [x] 테스트 PDF 1개로 전체 파이프라인 End-to-End 검증
+- [x] 동일 PDF 재실행 시 `skipped` 상태 확인 (중복 방지 검증)
+- [x] Retriever로 검색 쿼리 테스트 (콘솔 출력 확인)
+- [x] 연관 문서 변경 (아래 섹션 참조)
 
 ---
 
@@ -478,4 +480,26 @@ OPENAI_API_KEY=sk-...   # 임베딩 API 호출용 (필수)
 
 ## 구현 기록
 
-(구현 완료 시 Coder가 아래에 기록)
+- **작업 내용 (2026-04-09)**: `core/rag.py` 및 `scripts/chunk_and_embed.py` 구현 완료.
+  - `pyproject.toml`에 `pandas>=2.0.0`, `tabulate>=0.9.0`, `tiktoken>=0.7.0` 추가 후 `uv sync`
+  - `core/rag.py`: 10개 함수 전체 구현 (추출/병합/노이즈필터링/1차분할/2차분할/임베딩/적재/검색/해시/파이프라인)
+  - `scripts/chunk_and_embed.py`: 인터랙티브 CLI 구현 (동적 목록, 0=전체/N=개별/q=종료)
+- **검증 결과** — `test_rag_pipeline.py` 기준 / 대상 PDF: `LM2001020201_23v5_요구사항+확인_20251108.pdf` (77p, 2.2MB):
+
+  | 단계 | 테스트 항목 | 결과 | 비고 |
+  |---|---|---|---|
+  | [1] SHA-256 해시 | `compute_file_hash()` | `8151540c8bbdf584` | 16자, 정상 ✅ |
+  | [2] PDF 추출 | `extract_pages()` | 77페이지, **한글 36,377자** | 한글 깨짐 없음 ✅ |
+  | [3] 페이지 병합 | `merge_pages()` | 전체 76,320자, 페이지 마커 삽입 | ✅ |
+  | [4] 노이즈 필터링 | `filter_noise()` | 76,320자 → 53,583자 (**29.8% 제거**) | 불필요 섹션 제거 ✅ |
+  | [5] 1차 분할 | `split_by_sections()` | **73개 섹션** (빈 섹션 13개 플레이스홀더 포함) | ✅ |
+  | [6] 2차 분할 | `refine_chunks()` | **98개 청크** / 최소 105자·최대 977자·평균 425자 | 7개 메타데이터 필드 완전 ✅ |
+  | [7] E2E 적재 | `process_pdf()` | **status=success**, 98개 청크 ChromaDB 적재 | `ncs_test_e2e` 컬렉션 ✅ |
+  | [8] 중복 방지 | `process_pdf()` 재실행 | **status=skipped** (hash: `8151540c8bbdf584`) | API 재호출 없이 차단 ✅ |
+  | [9] Retriever 검색 | `get_retriever().invoke()` | 쿼리 "요구사항 분석의 절차와 방법은?" → **3개 청크 반환** | source·subtitle·pages 메타데이터 포함 ✅ |
+
+- **계획 대비 편차**:
+  - `_check_already_embedded()` 내부 헬퍼 함수 추가 — 중복 체크 로직 분리 (가독성 목적, 계획서 스코프 내)
+  - `tiktoken` 초기화 실패 시 글자 수 기반 fallback splitter 추가 (방어 로직 강화)
+  - **`LEARNING_UNIT_PATTERN` 수정** — 실제 NCS PDF 확인 결과 본문 헤더가 `학습 1 현행 시스템 분석하기` (구분자 없음) 형태임을 확인. 계획서의 `[:.·]` 구분자 필수 패턴 → `[:.·]?` 선택적으로 변경. 오매칭 방지를 위해 제목 시작 `[가-힣]` 필수 조건 추가. (**영향 범위**: `## 상수 및 설정` 코드 블록 내 `LEARNING_UNIT_PATTERN` 값 상이)
+  - **`.env` 파일명 오류 수정** — 파일명에 공백이 포함된 `.env ` 상태였음 (`mv` 명령으로 `.env`로 수정). `load_dotenv()`가 `.env`만 탐색하므로 API 키 로드 실패 원인.
