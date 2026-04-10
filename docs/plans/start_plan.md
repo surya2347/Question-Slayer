@@ -68,9 +68,12 @@ Question-Slayer/
 │   ├── rag.py                    # RAG 파이프라인 — ChromaDB 연결, PDF 처리, 청킹, 임베딩, 검색
 │   ├── prompts.py                # 프롬프트 모음 — 6관점 템플릿, Bloom 스코어링, 교정 가이드, 비유 주입
 │   └── utils.py                  # 유틸리티 — 관심사 JSON 입출력, Bloom 수준 계산, 공통 헬퍼
+├── scripts/
+│   └── chunk_and_embed.py      # PDF 청킹·임베딩 CLI — data/ncs_pdfs/ PDF 선택 후 파이프라인 실행
+│                                 # 📎 상세 → [RAG 구현 계획](docs/plans/RAG_plan.md)
 ├── data/
 │   ├── ncs_pdfs/                 # NCS 원본 PDF 파일 보관
-│   ├── chroma_db/                # ChromaDB 로컬 저장소 (자동 생성, .gitignore 처리)
+│   ├── chroma_db/                # ChromaDB 로컬 저장소 (Git 포함 — Streamlit Cloud 휘발성 대응, 재임베딩 비용 절감)
 │   └── user_profiles/           # 사용자 관심사 JSON 저장소
 ├── docs/
 │   └── plans/                   # 기능별 상세 계획 문서 보관소
@@ -93,7 +96,7 @@ Question-Slayer/
 - 폴더명·파일명은 영문 소문자 + 언더스코어 기준, 한글·이모티콘 사용 금지.
 - 환경 설정 단계에서는 각 파일을 생성하고 **주석으로 역할만 기술**, 실제 코드 작성 금지.
 - `.env`는 절대 Git에 커밋하지 말 것 — `.gitignore`에 반드시 포함.
-- `chroma_db/` 폴더도 `.gitignore` 처리 (용량 이슈 및 재현 가능성 확보).
+- `chroma_db/`는 **Git에 포함** — Streamlit Cloud 배포 시 OpenAI API 재호출 방지 목적.
 
 ---
 

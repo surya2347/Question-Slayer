@@ -4,13 +4,14 @@
 NCS 자격증 학습용 AI 질의응답 플랫폼. Bloom 분류학(1956) 기반 질문 수준 분석 + 6관점 맞춤 답변.
 
 ## 기술 스택
-Python 3.11 / Streamlit / LangGraph / ChromaDB / OpenAI / Plotly / uv
+Python 3.11 / Streamlit / LangGraph / ChromaDB / OpenAI / Plotly / pandas / tabulate / uv
 
 ## 디렉토리 규칙
 - `app.py` : Streamlit 엔트리, 세션 초기화
 - `pages/` : 1_Chat.py (채팅), 2_Insight.py (시각화)
 - `core/` : graph.py(워크플로우), rag.py(검색), prompts.py(템플릿), utils.py(헬퍼)
-- `data/` : ncs_pdfs/(PDF), chroma_db/(벡터DB), user_profiles/(JSON)
+- `scripts/` : chunk_and_embed.py(PDF 청킹·임베딩 CLI)
+- `data/` : ncs_pdfs/(PDF), chroma_db/(벡터DB, Git 포함), user_profiles/(JSON)
 - `docs/plans/` : 기능별 상세 계획 문서
 - `.rules/` : 하위 AI 에이전트 규칙 문서
 
