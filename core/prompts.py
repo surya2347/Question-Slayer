@@ -232,6 +232,46 @@ PROMPT_CAUTION = """\
 **한계 및 예외**: [한계 설명]
 """
 
+# ============================================================================
+# 7. Bloom 스코어링 (Bloom Scoring) — LLM 2차 정교화용
+# ============================================================================
+
+PROMPT_BLOOM_SCORING = """\
+당신은 Bloom의 교육목표 분류학(1956) 전문가입니다.
+사용자의 질문이 Bloom 6단계 중 어디에 해당하는지 분석하세요.
+
+【분석할 질문】
+{question}
+
+【Bloom 분류학 6단계 기준】
+1. 지식(Knowledge)   : 사실·용어·개념을 기억/인식하는 능력
+   - 키워드: 무엇, 정의, 나열, 뜻, 언제, 누가
+2. 이해(Comprehension): 정보를 이해하고 요약하는 능력
+   - 키워드: 설명, 왜, 어떻게 작동, 의미, 해석
+3. 응용(Application) : 지식을 새 상황에 적용하는 능력
+   - 키워드: 활용, 적용, 사용하면, 실무에서, 만들면
+4. 분석(Analysis)    : 정보를 분해해 관계·원인을 파악하는 능력
+   - 키워드: 차이점, 비교, 구조, 분류, 원인
+5. 종합(Synthesis)   : 요소들을 결합해 새것을 창출하는 능력
+   - 키워드: 결합, 설계, 새로운, 통합, 조합
+6. 평가(Evaluation)  : 기준에 따라 판단하는 능력
+   - 키워드: 평가, 더 나은, 장단점, 판단, 추천
+
+【지시사항】
+- 위 질문이 Bloom 6단계 중 어디에 해당하는지 분석하세요.
+- 반드시 아래 JSON 형식으로만 응답하세요 (다른 텍스트 포함 금지).
+
+【필수 JSON 형식】
+{{
+    "level": [1~6 정수],
+    "name_ko": "[지식|이해|응용|분석|종합|평가]",
+    "name_en": "[Knowledge|Comprehension|Application|Analysis|Synthesis|Evaluation]",
+    "evidence": "[이 질문이 해당 단계인 이유 1~2문장]",
+    "keywords_found": ["[질문에서 발견된 키워드]"],
+    "confidence": [0.0~1.0 소수]
+}}
+"""
+
 
 # ============================================================================
 # 헬퍼 함수
@@ -314,8 +354,19 @@ def validate_templates() -> dict:
 # ============================================================================
 
 if __name__ == "__main__":
+    # 6관점 템플릿 검증
     results = validate_templates()
-    print("=== 프롬프트 템플릿 검증 결과 ===")
+    print("=== 6관점 프롬프트 템플릿 검증 결과 ===")
     for perspective, status in results.items():
         mark = "✅" if status == "OK" else "❌"
         print(f"  {mark} {perspective}: {status}")
+
+    # Bloom 스코어링 템플릿 검증
+    print("\n=== Bloom 스코어링 프롬프트 검증 ===")
+    try:
+        rendered = PROMPT_BLOOM_SCORING.format(question="Python 변수란 무엇인가요?")
+        # {question} 변수가 치환되었는지만 확인 (JSON 예시의 { } 는 정상)
+        assert "{question}" not in rendered, "변수 주입 실패"
+        print("  ✅ PROMPT_BLOOM_SCORING: OK")
+    except Exception as e:
+        print(f"  ❌ PROMPT_BLOOM_SCORING: FAIL — {e}")
