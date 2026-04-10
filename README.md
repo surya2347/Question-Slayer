@@ -45,5 +45,23 @@ uv run python scripts/chunk_and_embed.py
 streamlit run app.py
 ```
 
+#### 추가적인 test 방법
+
+* 문서별 RAG 청킹 결과 보기 (자연어 단위, 임베딩X)
+
+```bash
+uv run python scripts/test_chunking.py
+```
+
+* PDF 원본 텍스트 + 표 추출 테스트 (원하는 페이지 단위로)
+  - `scripts/read_pdf_pages.py`에서 `PAGES_TO_SCAN` 리스트를 수정하여 원하는 페이지(물리적인 페이지)를 지정할 수 있습니다.
+
+```bash
+uv run python scripts/read_pdf_pages.py
+```
+
+
+
+
 ## 팀
 - 2인 팀 / 개발 기간: 7일

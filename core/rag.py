@@ -39,29 +39,16 @@ MAX_CHUNK_TOKENS: int = 500
 CHUNK_OVERLAP_TOKENS: int = 50
 MIN_CHUNK_TOKENS: int = 50  # 이 값 미만인 섹션은 이전(또는 다음) 섹션에 병합
 
-# 노이즈 필터링 키워드 (해당 라인 감지 시 다음 구조 헤더까지 전체 제거)
-NOISE_SECTION_KEYWORDS: list[str] = [
-    "교수·학습 방법",
-    "교수 학습 방법",
-    "교수학습 방법",
-    "평가 준거",
-    "평가준거",
-    "개발 이력",
-    "개발이력",
-]
-
 # 도표·그림 제거 후 빈 섹션에 삽입할 플레이스홀더
 EMPTY_SECTION_PLACEHOLDER: str = (
     "[해당 섹션은 도표·그림 위주 콘텐츠로 구성되어 텍스트 정보가 제외되었습니다.]"
 )
 
 # NCS 문서 구조 감지용 정규식
-# 구분자([:.·])는 선택적 — P16+ 본문 헤더는 '학습 1 현행 시스템 분석하기' 형태 (구분자 없음)
-# 제목 첫 글자를 [가-힣]으로 제한 → '학습 1개당...' 같은 오매칭 차단
-LEARNING_UNIT_PATTERN: str = r"학습\s*(\d+)\s*[:.·]?\s+([가-힣][^\n]+)"
-SECTION_TYPE_PATTERN: str = r"(필요\s*지식|수행\s*내용|수행내용|필요지식)"
-# 다양한 대시 대응: 하이픈(-), 엔 대시(–), 엠 대시(—) + 공백 유연성
-SUBTITLE_PATTERN: str = r"(\d+\s*[-–—]\s*\d+\.?\s+.+)|([가-힣]\.\s+.+)"
+RE_MAJOR_PATTERN: str = r"^[ \t]*학\s*습\s*(\d+)\.?\s*([가-힣a-zA-Z\s]+)"
+RE_SUB_NUM_PATTERN: str = r"^[ \t]*(\d+)-(\d+)\.\s*$"
+RE_SECTION_PATTERN: str = r"^[ \t]*(필\s*요\s*지\s*식|수\s*행\s*내\s*용|평\s*가)\s*/?\s*"
+RE_SKIP_START_PATTERN: str = r"^[ \t]*(교수\s*[·・]?\s*학습\s*방법|개발\s*이력)"
 
 # 페이지 경계 마커 (내부 처리용, 최종 청크에서 제거)
 PAGE_MARKER_TEMPLATE: str = "\n<!--PAGE:{page_num}-->\n"
@@ -131,11 +118,52 @@ def extract_pages(pdf_path: str) -> list[dict]:
                 # 페이지 파싱 오류 시 해당 페이지 건너뜀
                 logger.warning(f"[페이지 {page_num}] 파싱 오류 (건너뜀): {e}")
 
+    # MVP 범위에서 모든 NCS PDF에 동일 적용하는 임시 규칙: 앞 12페이지 하드 스킵
+    if len(pages) > 12:
+        pages = pages[12:]
+
     return pages
 
 
 # ---------------------------------------------------------------------------
-# 2. 페이지별 텍스트 → 하나의 문자열로 병합 (페이지 마커 삽입)
+# 2. NCS PDF 공통 잡음 제거
+# ---------------------------------------------------------------------------
+def clean_ncs_junk(text: str) -> str:
+    """
+    NCS PDF에서 반복적으로 등장하는 공통 잡음을 제거한다.
+
+    Args:
+        text: merge_pages() 이후 전체 텍스트
+
+    Returns:
+        잡음 제거 후 텍스트
+    """
+    cleaned = text
+
+    patterns = [
+        (r"\(cid:\d+\)", ""),
+        (r"출처\s*:.*?\(\d{4}\).*?p\.\s*\d+", ""),
+        (r"\[그림\s*\d+-\d+\]", ""),
+        (r"www\.ncs\.go\.kr", ""),
+        (r"^\s*\d+\s*$", "", re.MULTILINE),
+        (r"\n{3,}", "\n\n"),
+    ]
+
+    for pattern_info in patterns:
+        pattern, replacement, *flags = pattern_info
+        regex_flags = flags[0] if flags else 0
+        cleaned = re.sub(pattern, replacement, cleaned, flags=regex_flags)
+
+    return cleaned
+
+
+def filter_noise(text: str) -> str:
+    """기존 호출부 호환을 위해 clean_ncs_junk()를 위임 호출한다."""
+    return clean_ncs_junk(text)
+
+
+# ---------------------------------------------------------------------------
+# 3. 페이지별 텍스트 → 하나의 문자열로 병합 (페이지 마커 삽입)
 # ---------------------------------------------------------------------------
 def merge_pages(pages: list[dict]) -> str:
     """
@@ -156,62 +184,20 @@ def merge_pages(pages: list[dict]) -> str:
 
 
 # ---------------------------------------------------------------------------
-# 3. 키워드 기반 노이즈 섹션 제거
-# ---------------------------------------------------------------------------
-def filter_noise(text: str) -> str:
-    """
-    NOISE_SECTION_KEYWORDS에 해당하는 섹션을 제거한다.
-    키워드가 포함된 라인부터 다음 구조 헤더(학습N: 또는 필요지식/수행내용) 직전까지 삭제.
-    다음 구조 헤더가 없으면 문서 끝까지 삭제.
-
-    Args:
-        text: merge_pages()의 반환값
-
-    Returns:
-        노이즈 제거된 텍스트
-    """
-    lines = text.split("\n")
-
-    # 구조 헤더 패턴 (다음 정상 섹션의 시작을 감지)
-    structure_pattern = re.compile(
-        r"(" + LEARNING_UNIT_PATTERN + r"|" + SECTION_TYPE_PATTERN + r")"
-    )
-
-    result_lines: list[str] = []
-    skip = False
-
-    for i, line in enumerate(lines):
-        # 노이즈 키워드 감지 → 스킵 시작
-        if any(keyword in line for keyword in NOISE_SECTION_KEYWORDS):
-            skip = True
-            continue
-
-        if skip:
-            # 구조 헤더 감지 시 스킵 종료 (해당 라인은 포함)
-            if structure_pattern.search(line):
-                skip = False
-                result_lines.append(line)
-        else:
-            result_lines.append(line)
-
-    return "\n".join(result_lines)
-
-
-# ---------------------------------------------------------------------------
 # 4. NCS 소제목 단위 1차 분할 + 짧은 섹션 병합 + 빈 섹션 플레이스홀더
 # ---------------------------------------------------------------------------
 def split_by_sections(text: str) -> list[dict]:
     """
-    NCS 문서 구조에 따라 소제목 단위로 1차 분할한다.
-    - 대단위: 학습 N (LEARNING_UNIT_PATTERN)
-    - 중단위: 필요 지식 / 수행 내용 (SECTION_TYPE_PATTERN)
-    - 소단위: 1-1. 소제목 / 가. 소제목 (SUBTITLE_PATTERN)
+    NCS 문서 구조에 따라 상태머신 기반으로 1차 분할한다.
+    - 연속 학습 목록은 major_candidates에 버퍼링
+    - N-M. 번호-only 줄이 등장하면 해당 N의 학습 라인을 current_major로 확정
+    - N-M. 다음 줄이 즉시 일반 문자열일 때만 소단원으로 확정
 
     빈 섹션은 EMPTY_SECTION_PLACEHOLDER로 대체.
     MIN_CHUNK_TOKENS 미만 섹션은 이전 섹션에 병합.
 
     Args:
-        text: filter_noise()의 반환값
+        text: clean_ncs_junk()의 반환값
 
     Returns:
         [{"learning_unit": str, "section_type": str,
@@ -219,22 +205,120 @@ def split_by_sections(text: str) -> list[dict]:
     """
     sections: list[dict] = []
 
-    # 정규식 컴파일
-    re_learning = re.compile(LEARNING_UNIT_PATTERN)
-    re_section = re.compile(SECTION_TYPE_PATTERN)
-    re_subtitle = re.compile(SUBTITLE_PATTERN)
+    re_major = re.compile(RE_MAJOR_PATTERN)
+    re_sub_num = re.compile(RE_SUB_NUM_PATTERN)
+    re_section = re.compile(RE_SECTION_PATTERN)
+    re_skip_start = re.compile(RE_SKIP_START_PATTERN)
     re_page = re.compile(PAGE_MARKER_REGEX)
 
-    # 대단위(학습 N) 기준 분할
-    learning_splits = _split_by_pattern(text, re_learning)
+    current_major = "전체"
+    current_section = "필요 지식"
+    current_sub = "전체"
+    pending_sub_num: str | None = None
+    major_candidates: dict[int, str] = {}
+    content_buf: list[str] = []
+    skip_mode = False
 
-    if not learning_splits:
-        # NCS 구조 패턴 미매칭 fallback → 전체를 단일 섹션으로 처리
-        logger.warning("NCS 학습 단위 패턴 미매칭 → 전체 텍스트를 단일 섹션으로 처리")
+    def flush() -> None:
+        if not content_buf:
+            return
+
+        joined = "\n".join(content_buf)
+        raw_pages = _extract_pages_from_text(joined, re_page)
+        clean = re_page.sub("", joined).strip()
+        if not clean:
+            # 페이지 마커만 있는 버퍼는 실제 청크로 저장하지 않는다.
+            content_buf.clear()
+            return
+
+        sections.append(
+            {
+                "learning_unit": current_major,
+                "section_type": current_section,
+                "subtitle": current_sub,
+                "content": clean,
+                "pages": raw_pages,
+            }
+        )
+        content_buf.clear()
+
+    lines = text.splitlines()
+
+    for raw_line in lines:
+        line = raw_line
+        stripped = line.strip()
+
+        while True:
+            major_match = re_major.match(line)
+            section_match = re_section.match(line)
+            sub_num_match = re_sub_num.match(line)
+            skip_start_match = re_skip_start.match(line)
+
+            if skip_start_match:
+                flush()
+                skip_mode = True
+                pending_sub_num = None
+                break
+
+            if skip_mode:
+                if major_match or section_match or sub_num_match:
+                    skip_mode = False
+                    continue
+                break
+
+            if pending_sub_num is not None:
+                if not stripped:
+                    pending_sub_num = None
+                    break
+
+                if major_match or section_match or sub_num_match or skip_start_match:
+                    pending_sub_num = None
+                    continue
+
+                current_sub = f"{pending_sub_num}. {stripped}"
+                pending_sub_num = None
+                break
+
+            if major_match:
+                flush()
+                major_num = int(major_match.group(1))
+                major_title = major_match.group(2).strip()
+                major_candidates[major_num] = f"학습 {major_num}. {major_title}"
+                break
+
+            if sub_num_match:
+                flush()
+                major_num = int(sub_num_match.group(1))
+                pending_sub_num = f"{major_num}-{sub_num_match.group(2)}"
+                if major_num in major_candidates:
+                    current_major = major_candidates[major_num]
+                elif current_major.startswith(f"학습 {major_num}"):
+                    current_major = current_major
+                else:
+                    current_major = f"학습 {major_num} (제목 미확인)"
+                major_candidates.clear()
+                break
+
+            if section_match:
+                flush()
+                current_section = _normalize_section_name(section_match.group(1))
+                pending_sub_num = None
+                break
+
+            content_buf.append(line)
+            break
+
+    if pending_sub_num is not None:
+        pending_sub_num = None
+
+    flush()
+
+    if not sections:
+        logger.warning("NCS 구조 패턴 미매칭 → 전체 텍스트를 단일 섹션으로 처리")
         raw_pages = _extract_pages_from_text(text, re_page)
         clean = re_page.sub("", text).strip()
         clean = clean if clean else EMPTY_SECTION_PLACEHOLDER
-        return [
+        sections = [
             {
                 "learning_unit": "전체",
                 "section_type": "필요 지식",
@@ -244,94 +328,25 @@ def split_by_sections(text: str) -> list[dict]:
             }
         ]
 
-    for lu_header, lu_body in learning_splits:
-        lu_name = lu_header.strip()
-
-        # 중단위(필요 지식/수행 내용) 기준 분할
-        section_splits = _split_by_pattern(lu_body, re_section)
-
-        if not section_splits:
-            # 중단위 미매칭 → 대단위 전체를 하나로
-            raw_pages = _extract_pages_from_text(lu_body, re_page)
-            clean = re_page.sub("", lu_body).strip()
-            clean = clean if clean else EMPTY_SECTION_PLACEHOLDER
-            sections.append(
-                {
-                    "learning_unit": lu_name,
-                    "section_type": "필요 지식",
-                    "subtitle": lu_name,
-                    "content": clean,
-                    "pages": raw_pages,
-                }
-            )
-            continue
-
-        for st_header, st_body in section_splits:
-            st_name = st_header.strip()
-
-            # 소단위(1-1. / 가.) 기준 분할
-            subtitle_splits = _split_by_pattern(st_body, re_subtitle)
-
-            if not subtitle_splits:
-                # 소단위 미매칭 → 중단위 이름을 subtitle로 사용
-                raw_pages = _extract_pages_from_text(st_body, re_page)
-                clean = re_page.sub("", st_body).strip()
-                clean = clean if clean else EMPTY_SECTION_PLACEHOLDER
-                sections.append(
-                    {
-                        "learning_unit": lu_name,
-                        "section_type": st_name,
-                        "subtitle": st_name,
-                        "content": clean,
-                        "pages": raw_pages,
-                    }
-                )
-                continue
-
-            for sub_header, sub_body in subtitle_splits:
-                sub_name = sub_header.strip()
-                raw_pages = _extract_pages_from_text(sub_body, re_page)
-                clean = re_page.sub("", sub_body).strip()
-                # 빈 섹션 → 플레이스홀더 주입
-                clean = clean if clean else EMPTY_SECTION_PLACEHOLDER
-                sections.append(
-                    {
-                        "learning_unit": lu_name,
-                        "section_type": st_name,
-                        "subtitle": sub_name,
-                        "content": clean,
-                        "pages": raw_pages,
-                    }
-                )
-
     # 짧은 섹션 병합: MIN_CHUNK_TOKENS 미만인 섹션을 이전 섹션에 병합
     sections = _merge_short_sections(sections)
 
     return sections
 
 
-def _split_by_pattern(text: str, pattern: re.Pattern) -> list[tuple[str, str]]:
-    """
-    텍스트를 정규식 패턴 매칭 위치 기준으로 분할한다.
-    [(매칭된_헤더, 다음_헤더_직전까지의_본문), ...]
-    """
-    matches = list(pattern.finditer(text))
-    if not matches:
-        return []
-
-    result: list[tuple[str, str]] = []
-    for i, match in enumerate(matches):
-        header = match.group()
-        body_start = match.end()
-        body_end = matches[i + 1].start() if i + 1 < len(matches) else len(text)
-        body = text[body_start:body_end]
-        result.append((header, body))
-    return result
-
-
 def _extract_pages_from_text(text: str, re_page: re.Pattern) -> list[int]:
     """텍스트에서 <!--PAGE:N--> 마커를 찾아 페이지 번호 목록 반환"""
     return [int(m.group(1)) for m in re_page.finditer(text)]
+
+
+def _normalize_section_name(section: str) -> str:
+    """중단원 표기를 기존 메타데이터 형식으로 정규화한다."""
+    compact = re.sub(r"\s+", "", section)
+    if compact == "필요지식":
+        return "필요 지식"
+    if compact == "수행내용":
+        return "수행 내용"
+    return compact
 
 
 def _count_tokens_approx(text: str) -> int:
@@ -595,7 +610,7 @@ def process_pdf(pdf_path: str, collection_name: str) -> dict:
     단일 PDF에 대한 전체 RAG 파이프라인을 실행한다.
 
     흐름:
-        해시 계산 → 중복 체크 → 텍스트 추출 → 노이즈 필터링
+        해시 계산 → 중복 체크 → 텍스트 추출 → 페이지 병합 → 공통 잡음 제거
         → 1차 분할 → 2차 분할 → 임베딩 + ChromaDB 적재
 
     Args:
@@ -637,8 +652,8 @@ def process_pdf(pdf_path: str, collection_name: str) -> dict:
         # 4. 페이지 병합
         merged_text = merge_pages(pages)
 
-        # 5. 노이즈 필터링
-        filtered_text = filter_noise(merged_text)
+        # 5. 공통 잡음 제거
+        filtered_text = clean_ncs_junk(merged_text)
 
         # 6. 1차 분할 (NCS 소제목 단위)
         sections = split_by_sections(filtered_text)

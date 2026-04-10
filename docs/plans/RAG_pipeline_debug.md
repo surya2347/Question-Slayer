@@ -272,6 +272,13 @@ extract_pages → (pages join) → clean_ncs_junk → split_by_sections → list
 ---
 
 ## 구현 기록
-- **작업 내용 (2026-04-10)**: 
-- **검증 결과**: 미진행
-- **계획 대비 편차**:
+- **작업 내용 (2026-04-10)**: `core/rag.py` 구현 반영
+  1. `extract_pages`: 반환 직전 앞 12페이지 하드스킵 로직 추가
+  2. `clean_ncs_junk`: CID, 도표 출처, 그림 라벨, NCS URL, 단독 숫자 줄, 연속 빈 줄 제거 구현
+  3. `split_by_sections`: 비교안 B 기준 상태머신 재작성
+  4. `pending_sub_num` 처리: `1-1.` 다음 줄이 즉시 일반 문자열일 때만 소단원 확정 구현
+  5. 메타데이터 필드 `learning_unit`, `section_type`, `subtitle`, `pages` 유지 구현
+  6. `process_pdf`: `merge_pages → clean_ncs_junk → split_by_sections` 순서로 호출 변경
+  7. 기존 호출부 호환용 `filter_noise()` 래퍼 유지
+- **검증 결과**: `python3 -m py_compile core/rag.py` 통과, `uv run` 샘플 입력으로 상태머신 동작 확인
+- **계획 대비 편차**: 기존 테스트 스크립트 호환성 유지를 위해 `filter_noise()` 제거 대신 `clean_ncs_junk()` 위임 래퍼로 유지
