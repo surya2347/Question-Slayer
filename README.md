@@ -45,6 +45,46 @@ uv run python scripts/chunk_and_embed.py
 streamlit run app.py
 ```
 
+### 5단계 — LangGraph 콘솔 테스트
+
+그래프만 먼저 확인하고 싶다면 아래처럼 실행하면 됩니다.
+
+```bash
+UV_CACHE_DIR=/tmp/uv-cache uv run python test_graph.py
+```
+
+- 기본 실행 시 계획서 기준 노드 테스트 10개를 순서대로 돌립니다.
+- 각 테스트마다 `status`, `bloom_level`, `perspective`, `retrieval_hit` 등을 확인할 수 있습니다.
+- 기본값은 원격 OpenAI 호출 없이 fallback 답변과 중간 로그를 확인하는 모드입니다.
+
+질문과 과목을 직접 넣어서 중간 단계 로그까지 보고 싶다면:
+
+```bash
+UV_CACHE_DIR=/tmp/uv-cache uv run python test_graph.py \
+  --question "요구사항 분석에서 기능 요구사항과 비기능 요구사항 차이를 설명해줘" \
+  --subject-id requirements_analysis \
+  --perspective auto \
+  --interests "게임,축구"
+```
+
+- 노드별 상태가 순서대로 출력됩니다.
+- 마지막에는 최종 답변과 `debug_trace` JSON 로그가 함께 출력됩니다.
+- 사용 가능한 `subject_id` 목록은 아래 명령으로 확인할 수 있습니다.
+
+```bash
+UV_CACHE_DIR=/tmp/uv-cache uv run python test_graph.py --list-subjects
+```
+
+실제 OpenAI 호출까지 켜고 싶다면 환경 변수를 함께 주면 됩니다.
+
+```bash
+QUESTION_SLAYER_ENABLE_REMOTE_RAG=1 \
+QUESTION_SLAYER_ENABLE_LLM=1 \
+UV_CACHE_DIR=/tmp/uv-cache uv run python test_graph.py \
+  --question "요구사항 확인 단계의 핵심 산출물을 설명해줘" \
+  --subject-id requirements_analysis
+```
+
 #### 추가적인 test 방법
 
 * 문서별 RAG 청킹 결과 보기 (자연어 단위, 임베딩X)
@@ -59,6 +99,23 @@ uv run python scripts/test_chunking.py
 ```bash
 uv run python scripts/read_pdf_pages.py
 ```
+
+## 과목 수정하는 법
+
+새 과목을 추가하거나 연결을 바꾸려면 아래 순서로 작업하면 됩니다.
+
+1. 새 PDF를 `data/ncs_pdfs/`에 넣습니다.
+2. `uv run python scripts/chunk_and_embed.py`로 임베딩합니다.
+3. 생성된 Chroma 컬렉션명을 확인합니다.
+4. [core/graph.py](/home/user/Question-Slayer/core/graph.py) 의 `SUBJECT_COLLECTION_MAP`에 `subject_id`, `label`, `collection_name`, `source`를 추가하거나 수정합니다.
+5. 별칭으로도 인식시키고 싶다면 같은 파일의 `SUBJECT_ALIASES`를 함께 수정합니다.
+6. `UV_CACHE_DIR=/tmp/uv-cache uv run python test_graph.py --list-subjects` 와 수동 질문 실행으로 실제 연결을 확인합니다.
+
+현재 기본 매핑은 다음 3개입니다.
+
+- `requirements_analysis` → 요구사항 확인
+- `data_io_implementation` → 데이터 입출력 구현
+- `server_program_implementation` → 서버 프로그램 구현
 
 
 
