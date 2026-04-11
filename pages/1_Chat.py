@@ -159,6 +159,45 @@ if "notUnderstanding" not in st.session_state:
     st.session_state.notUnderstanding = 0
 if "currentLevel" not in st.session_state:
     st.session_state.currentLevel = 1
+if "perspective" not in st.session_state:
+    st.session_state.perspective = "concept"
+
+# 관점 옵션 (key → 표시 라벨)
+PERSPECTIVES: dict[str, str] = {
+    "concept":   "💡 개념",
+    "principle": "⚙️ 원리",
+    "analogy":   "🎭 비유",
+    "relation":  "🔗 관계",
+    "usage":     "🛠️ 활용",
+    "caution":   "⚠️ 주의사항",
+}
+
+# Bloom 단계별 뱃지 색상 (bg, text_color, name_ko)
+BLOOM_BADGE: dict[int, tuple] = {
+    1: ("#e8f4fd", "#1e88e5", "지식"),
+    2: ("#e8f5e9", "#43a047", "이해"),
+    3: ("#fff8e1", "#fb8c00", "응용"),
+    4: ("#fce4ec", "#e53935", "분석"),
+    5: ("#f3e5f5", "#8e24aa", "종합"),
+    6: ("#e0f2f1", "#00897b", "평가"),
+}
+
+
+def _dummy_bloom(question: str) -> tuple[int, str]:
+    """임시 Bloom 판별 — graph.py 연결 전 키워드 1차 판별용."""
+    kw_map = {
+        6: ["평가", "더 나은", "장단점", "판단", "추천"],
+        5: ["설계", "결합", "새로운", "통합", "조합"],
+        4: ["차이점", "비교", "구조", "분류", "원인"],
+        3: ["활용", "적용", "사용하면", "실무에서"],
+        2: ["왜", "설명", "어떻게", "의미"],
+    }
+    names = {1: "지식", 2: "이해", 3: "응용", 4: "분석", 5: "종합", 6: "평가"}
+    for level in sorted(kw_map.keys(), reverse=True):
+        if any(kw in question for kw in kw_map[level]):
+            return level, names[level]
+    return 1, "지식"
+
 
 def get_dummy_response(retry_count):
     modes = {
@@ -196,13 +235,34 @@ with col_chat:
                 <div style="font-size:0.75rem;color:#999;margin-top:4px;">{msg.get('time', '')}</div>
             </div>""", unsafe_allow_html=True)
         else:
+            # Bloom 뱃지 렌더링
+            b_level = msg.get("bloom_level", 1)
+            b_bg, b_color, b_name = BLOOM_BADGE.get(b_level, BLOOM_BADGE[1])
+            badge = (
+                f'<span style="background:{b_bg};color:{b_color};'
+                f'border:1px solid {b_color};border-radius:6px;'
+                f'padding:2px 8px;font-size:0.75rem;font-weight:bold;'
+                f'margin-left:6px;">Lv{b_level} {b_name}</span>'
+            )
             st.markdown(f"""<div class="message message-assistant">
-                <b>🤖 AI 튜터</b><br>{msg['content']}
+                <b>🤖 AI 튜터</b>{badge}<br>{msg['content']}
                 <div style="font-size:0.75rem;color:#999;margin-top:4px;">{msg.get('time', '')}</div>
             </div>""", unsafe_allow_html=True)
     
     st.markdown("---")
-    
+
+    # 관점 선택 라디오
+    p_labels = list(PERSPECTIVES.values())
+    p_keys   = list(PERSPECTIVES.keys())
+    selected_label = st.radio(
+        "관점 선택",
+        p_labels,
+        horizontal=True,
+        index=p_keys.index(st.session_state.perspective),
+        label_visibility="collapsed",
+    )
+    st.session_state.perspective = p_keys[p_labels.index(selected_label)]
+
     col_input1, col_input2 = st.columns([6, 1])
     with col_input1:
         user_input = st.text_input("질문을 입력하세요...", placeholder="예: 포인터가 뭔가요?", label_visibility="collapsed")
@@ -211,9 +271,22 @@ with col_chat:
     
     if send_btn and user_input:
         time_str = datetime.now().strftime("%H:%M")
-        st.session_state.messages.append({"role": "user", "content": user_input, "time": time_str})
+        st.session_state.messages.append({
+            "role": "user",
+            "content": user_input,
+            "time": time_str,
+            "perspective": st.session_state.perspective,
+        })
         response = get_dummy_response(st.session_state.retryCount)
-        st.session_state.messages.append({"role": "assistant", "content": response, "time": time_str})
+        # Bloom 판별 (graph.py 연결 전 키워드 1차 판별)
+        b_level, b_name = _dummy_bloom(user_input)
+        st.session_state.messages.append({
+            "role": "assistant",
+            "content": response,
+            "time": time_str,
+            "bloom_level": b_level,
+            "bloom_name": b_name,
+        })
         st.session_state.retryCount = 0
         st.session_state.totalQuestions += 1
         st.rerun()
