@@ -86,7 +86,14 @@ st.markdown("""
 
 # 설정 상태 확인
 st.markdown("---")
-if st.session_state.get("subject"):
-    st.success(f"✅ 현재 학습 과목: **{st.session_state.subject}**")
-else:
-    st.info("📚 홈에서 학습 과목을 설정해주세요")
+col1, col2 = st.columns(2)
+with col1:
+    if st.session_state.get("subject"):
+        st.success(f"✅ 현재 학습 과목: **{st.session_state.subject}**")
+    else:
+        st.info("📚 왼쪽 사이드바에서 학습 과목을 설정해주세요")
+with col2:
+    if st.session_state.get("interests"):
+        st.success(f"✅ 관심사 {len(st.session_state.interests)}개 저장됨")
+    else:
+        st.info("💡 왼쪽 사이드바에서 관심사를 입력해주세요")
