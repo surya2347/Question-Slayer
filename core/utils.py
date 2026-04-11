@@ -15,32 +15,26 @@ from __future__ import annotations
 BLOOM_LEVELS: dict[int, dict] = {
     1: {
         "name_ko": "지식",
-        "name_en": "Knowledge",
         "definition": "사실, 용어, 기본 개념을 기억하는 능력",
     },
     2: {
         "name_ko": "이해",
-        "name_en": "Comprehension",
         "definition": "사실과 개념을 이해하고 요약·정리하는 능력",
     },
     3: {
         "name_ko": "응용",
-        "name_en": "Application",
         "definition": "습득한 지식으로 새로운 상황에서 문제를 해결하는 능력",
     },
     4: {
         "name_ko": "분석",
-        "name_en": "Analysis",
         "definition": "정보를 나눠 관계·동기·원인을 파악하는 능력",
     },
     5: {
         "name_ko": "종합",
-        "name_en": "Synthesis",
         "definition": "여러 요소를 결합해 새로운 전체를 창출하는 능력",
     },
     6: {
         "name_ko": "평가",
-        "name_en": "Evaluation",
         "definition": "기준·표준에 따라 정보에 대해 판단을 내리는 능력",
     },
 }
@@ -132,7 +126,6 @@ def score_bloom_by_keyword(question: str) -> dict:
         return {
             "level": 1,
             "name_ko": BLOOM_LEVELS[1]["name_ko"],
-            "name_en": BLOOM_LEVELS[1]["name_en"],
             "keywords_found": [],
             "confidence": 0.0,
             "method": "keyword",
@@ -147,7 +140,6 @@ def score_bloom_by_keyword(question: str) -> dict:
     return {
         "level": best_level,
         "name_ko": BLOOM_LEVELS[best_level]["name_ko"],
-        "name_en": BLOOM_LEVELS[best_level]["name_en"],
         "keywords_found": found_kws,
         "confidence": confidence,
         "method": "keyword",
@@ -185,6 +177,6 @@ if __name__ == "__main__":
             mark = "✅" if result["confidence"] == 0.0 else "❌"
         else:
             mark = "✅" if result["level"] == expected else "❌"
-        print(f"  {mark} [{result['name_ko']}(Lv{result['level']})] conf={result['confidence']} | {q}")
+        print(f"  {mark} [{result['name_ko']} Lv{result['level']}] conf={result['confidence']} | {q}")
         if result["keywords_found"]:
             print(f"       → 매칭 키워드: {result['keywords_found']}")
