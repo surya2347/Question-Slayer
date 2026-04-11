@@ -60,9 +60,17 @@ with st.sidebar:
 # CSS 스타일 - 단순화 버전
 st.markdown("""
 <style>
-    input:focus {
+    /* 입력창 기본 테두리: 검정 */
+    [data-testid="stTextInput"] div[data-baseweb="input"] {
+        border: 1.5px solid #333 !important;
+        border-radius: 8px !important;
+        box-shadow: none !important;
+    }
+
+    /* 포커스 시: 파란색 테두리 */
+    [data-testid="stTextInput"] div[data-baseweb="input"]:focus-within {
         border-color: #4f46e5 !important;
-        box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1) !important;
+        box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15) !important;
     }
     
     .card {
@@ -195,7 +203,7 @@ with col_chat:
     
     st.markdown("---")
     
-    col_input1, col_input2 = st.columns([4, 1])
+    col_input1, col_input2 = st.columns([6, 1])
     with col_input1:
         user_input = st.text_input("질문을 입력하세요...", placeholder="예: 포인터가 뭔가요?", label_visibility="collapsed")
     with col_input2:
