@@ -185,6 +185,67 @@ SUBJECT_COLLECTION_MAP = {
 - `set_entry_point(...)` 기준으로 설계
 - 1.x 문서 예제를 혼용하지 않음
 
+### LLM 설정 (신규)
+
+#### 목적
+- 프로젝트 전체에서 LLM API 호출을 **단일 설정점**으로 통일
+- 모델명, 온도, 최대 토큰 등 설정을 한 곳에서 관리
+- 추후 모델 변경 시 전체 코드 영향 최소화
+
+#### 구현 계획
+
+**파일**: `core/config.py` (신규 생성)
+
+```python
+# core/config.py
+# 역할: 프로젝트 전역 상수 및 LLM 설정 관리
+
+# ----- LLM 설정 -----
+LLM_MODEL = "gpt-4o-mini"          # OpenAI 모델명
+LLM_TEMPERATURE = 0.6               # 창의성 수준 (0.0 ~ 2.0, 낮을수록 결정적)
+LLM_MAX_TOKENS = 1000               # 응답 최대 토큰 수
+```
+
+#### 적용 대상 노드
+
+- `generate_answer_node`: 메인 답변 생성 시 LLM 호출
+- `build_prompt_input_node`: 프롬프트 결합 및 LLM 전달 준비
+- `analyze_question_node`: Bloom 분석 심화 단계에서 LLM fallback (선택)
+
+#### 호출 방식
+
+`core/graph.py`:
+```python
+from langchain_openai import ChatOpenAI
+from core.config import LLM_MODEL, LLM_TEMPERATURE, LLM_MAX_TOKENS
+
+llm = ChatOpenAI(
+    model=LLM_MODEL,
+    temperature=LLM_TEMPERATURE,
+    max_tokens=LLM_MAX_TOKENS,
+)
+```
+
+`core/prompts.py`:
+```python
+def get_answer(prompt: str, llm) -> str:
+    """프롬프트를 LLM에 전달하고 응답 반환"""
+    response = llm.invoke(prompt)
+    return response.content
+```
+
+#### 환경 변수 의존성
+
+- `.env` 파일에서 `OPENAI_API_KEY=sk-...` 필수 설정
+- `core/rag.py`의 `get_embeddings()` 와 동일한 API 키 사용
+- 키 미설정 시 `langchain_openai` 에서 자동으로 에러 발생
+
+#### 추후 확장 가능성
+
+- 모델 이름을 UI에서 선택 가능하게 변경
+- 사용자별 temperature 설정 제공
+- 다중 LLM 지원 (Anthropic, Cohere 등)
+
 ---
 
 ## 핵심 플로우
@@ -997,24 +1058,24 @@ def get_perspective_prompt(
 
 ## 체크리스트
 
-- [ ] LangGraph 0.2 계열로 의존성 고정
-- [ ] 실제 설치 버전 재확인
-- [ ] mock payload 입력 계약 확정
-- [ ] state schema 확정
-- [ ] `init_request_node` 내부 로직 확정
-- [ ] `prerequisite_check_node` 검증 규칙 확정
-- [ ] `analyze_question_node` 입출력 및 내부 로직 확정
-- [ ] `resolve_collection_node` 해석 로직 확정
-- [ ] subject_id 와 collection_name 대응표 정리
-- [ ] subject_id / label / collection_name 관리 위치 확정
-- [ ] README에 `과목 수정하는 법` 섹션 추가 항목 정의
-- [ ] `retrieve_context_node` 검색 결과 포맷 정책 확정
-- [ ] `route_perspective_node` 우선순위 로직 확정
-- [ ] `build_prompt_input_node` 입력 구조 확정
-- [ ] `generate_answer_node` 연동 계약 확정
-- [ ] `finalize_response_node` 반환 포맷 확정
-- [ ] 콘솔 테스트 파일 `test_graph.py` 계획 확정
-- [ ] 브라우저 세션 기반 chat history 저장 정책 반영
+- [x] LangGraph 0.2 계열로 의존성 고정
+- [x] 실제 설치 버전 재확인
+- [x] mock payload 입력 계약 확정
+- [x] state schema 확정
+- [x] `init_request_node` 내부 로직 확정
+- [x] `prerequisite_check_node` 검증 규칙 확정
+- [x] `analyze_question_node` 입출력 및 내부 로직 확정
+- [x] `resolve_collection_node` 해석 로직 확정
+- [x] subject_id 와 collection_name 대응표 정리
+- [x] subject_id / label / collection_name 관리 위치 확정
+- [x] README에 `과목 수정하는 법` 섹션 추가 항목 정의
+- [x] `retrieve_context_node` 검색 결과 포맷 정책 확정
+- [x] `route_perspective_node` 우선순위 로직 확정
+- [x] `build_prompt_input_node` 입력 구조 확정
+- [x] `generate_answer_node` 연동 계약 확정
+- [x] `finalize_response_node` 반환 포맷 확정
+- [x] 콘솔 테스트 파일 `test_graph.py` 계획 확정
+- [x] 브라우저 세션 기반 chat history 저장 정책 반영
 - [ ] 새로고침/창 닫기 시 chat history 동작 검증 항목 추가
 - [ ] Guardrail/검증 노드는 Phase 2로 분리 유지
 
@@ -1022,7 +1083,11 @@ def get_perspective_prompt(
 
 ## 구현 기록
 
-- 추후 코드 구현 단계에서 작성
+- **작업 내용 (2026-04-11)**: `core/graph.py`에 LangGraph Phase 2 골격을 구현함. 상태 스키마(`GraphState`)를 정의하고 `init_request_node`, `prerequisite_check_node`, `analyze_question_node`, `resolve_collection_node`, `retrieve_context_node`, `route_perspective_node`, `build_prompt_input_node`, `generate_answer_node`, `finalize_response_node`, `validate_answer_node`를 추가함. `build_question_graph()`, `run_question_graph(payload)`, `build_mock_payload(...)` 실행 인터페이스를 구현하고, `subject_id -> collection_name` 매핑표/별칭 해석/컬렉션 fallback 탐색을 반영함.
+- **검증 결과**: `python -m py_compile core/graph.py` 기준 문법 검증 통과.
+- **작업 내용 (2026-04-11)**: `core/config.py`를 새로 추가해 LLM/그래프 실행 상수를 분리했고, `core/prompts.py`에 관점별 프롬프트 조합 함수와 fallback 답변 생성 함수를 구현함. `test_graph.py`를 작성해 질문/과목/관심사를 직접 넣어 노드별 상태와 최종 답변, `debug_trace`를 콘솔에서 확인할 수 있게 했고, `README.md`에는 콘솔 테스트 방법과 `과목 수정하는 법` 섹션을 추가함.
+- **검증 결과** (해당 시): `UV_CACHE_DIR=/tmp/uv-cache uv run python test_graph.py` 및 수동 질문 실행 기준으로 중간 상태 확인 가능하도록 설계함. 실제 RAG 검색과 OpenAI 응답은 로컬 `.env`의 `OPENAI_API_KEY` 설정 여부에 따라 동작함.
+- **계획 대비 편차**: 계획서에서는 `retrieve_context_node`와 `generate_answer_node`가 기본적으로 실제 RAG/LLM 경로를 타는 형태를 전제했으나, 현재 구현은 로컬 콘솔 테스트와 개발 편의를 위해 `QUESTION_SLAYER_ENABLE_REMOTE_RAG=1`, `QUESTION_SLAYER_ENABLE_LLM=1` 환경변수를 켰을 때만 원격 호출을 수행하도록 분기함. 기본값은 네트워크 의존을 줄이기 위한 fallback 모드이며, 이를 위해 `debug_trace`를 추가로 누적해 중간 단계 확인이 가능하도록 했음. 또한 `test_graph.py`는 계획서의 단순 콘솔 테스트보다 확장되어 `--question`, `--subject-id`, `--perspective`, `--list-subjects`를 지원하는 수동 실행 CLI로 구현됨.
 
 ---
 
