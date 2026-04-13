@@ -161,12 +161,12 @@ st.set_page_config(...)
 ---
 
 ## 체크리스트
-- [ ] `app.py`에 `load_dotenv()` 추가
-- [ ] `build_fallback_answer()`에서 `학습 팁:` 행 제거 (core/prompts.py)
-- [ ] `finalize_response_node` 수정 (정상 + 오류 경로) (core/graph.py)
-- [ ] `py_compile` 검증 (app.py, prompts.py, graph.py)
-- [ ] 로컬 Streamlit 테스트 (LLM 경로 표시 확인)
-- [ ] fallback 경로에서 팁 중복 없는지 확인
+- [x] `app.py`에 `load_dotenv()` 추가
+- [x] `build_fallback_answer()`에서 `학습 팁:` 행 제거 (core/prompts.py)
+- [x] `finalize_response_node` 수정 (정상 + 오류 경로) (core/graph.py)
+- [x] `py_compile` 검증 (app.py, prompts.py, graph.py)
+- [x] 로컬 Streamlit 테스트 (LLM 경로 표시 확인)
+- [x] fallback 경로에서 팁 중복 없는지 확인
 
 ---
 
