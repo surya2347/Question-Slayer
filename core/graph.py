@@ -27,7 +27,7 @@ from core.config import (
     LLM_MODEL,
     LLM_TEMPERATURE,
 )
-from core.prompts import build_fallback_answer, get_perspective_prompt
+from core.prompts import build_fallback_answer, get_perspective_prompt, PROMPT_RESTRUCTURE_QUESTION
 from core.rag import get_retriever
 from core.utils import score_bloom_by_keyword
 
@@ -108,6 +108,10 @@ class GraphState(TypedDict, total=False):
     bloom_confidence: float
     bloom_reason: str
     improvement_tip: Optional[str]
+
+    # 질문 재구성
+    restructured_question: str       # "~~~가 궁금하신 거죠?" 형식
+    restructure_failed: bool         # LLM 호출 실패 시 True
 
     # 검색 라우팅 상태
     collection_candidates: list[str]
@@ -459,6 +463,88 @@ def analyze_question_node(state: GraphState) -> GraphState:
     }
 
 
+def restructure_question_node(state: GraphState) -> GraphState:
+    """정규화된 질문을 정확한 기술 용어로 한 줄 재해석합니다."""
+    if state.get("status") == "error":
+        return {
+            "restructured_question": "",
+            "restructure_failed": True,
+            "debug_trace": _append_trace(
+                state,
+                "restructure_question_node",
+                "이전 오류 상태로 인해 질문 재구성을 건너뛰었습니다.",
+            ),
+        }
+
+    normalized_question = state.get("normalized_question", "").strip()
+    # 빈 질문이면 재구성 스킵
+    if not normalized_question:
+        return {
+            "restructured_question": "",
+            "restructure_failed": True,
+            "debug_trace": _append_trace(
+                state,
+                "restructure_question_node",
+                "정규화된 질문이 비어있어 재구성을 건너뛰었습니다.",
+            ),
+        }
+
+    # 대화 기록 포맷팅
+    chat_history = _recent_chat_history(state.get("chat_history", []))
+    if chat_history:
+        history_text = "\n".join(
+            f"{m['role']}: {m['content']}" for m in chat_history
+        )
+    else:
+        history_text = "(없음)"
+
+    # 프롬프트 구성 및 LLM 호출
+    prompt_text = PROMPT_RESTRUCTURE_QUESTION.format(
+        normalized_question=normalized_question,
+        chat_history=history_text,
+    )
+
+    try:
+        if os.getenv("QUESTION_SLAYER_ENABLE_LLM") != "1":
+            raise ValueError("QUESTION_SLAYER_ENABLE_LLM이 활성화되지 않았습니다.")
+        if not os.getenv("OPENAI_API_KEY"):
+            raise ValueError("OPENAI_API_KEY가 설정되지 않았습니다.")
+
+        llm = _create_llm()
+        response = llm.invoke(prompt_text)
+        raw_text = getattr(response, "content", "") or str(response)
+        # 첫 줄만 추출, 100자 제한
+        restructured = raw_text.strip().split("\n")[0].strip()
+        if len(restructured) > 100:
+            restructured = restructured[:100]
+
+        if not restructured:
+            raise ValueError("LLM 응답이 비어 있습니다.")
+
+        return {
+            "restructured_question": restructured,
+            "restructure_failed": False,
+            "debug_trace": _append_trace(
+                state,
+                "restructure_question_node",
+                "질문을 재구성했습니다.",
+                restructured_question=restructured,
+            ),
+        }
+    except Exception as exc:
+        # 실패 시 원본 사용, 파이프라인 중단 금지
+        return {
+            "restructured_question": normalized_question,
+            "restructure_failed": True,
+            "debug_trace": _append_trace(
+                state,
+                "restructure_question_node",
+                "질문 재구성 실패로 원본을 사용합니다.",
+                error=str(exc),
+            ),
+        }
+
+
 def resolve_collection_node(state: GraphState) -> GraphState:
     """subject_id를 Chroma 컬렉션명으로 해석합니다."""
     if state.get("status") == "error":
@@ -726,8 +812,14 @@ def generate_answer_node(state: GraphState) -> GraphState:
         answer_text = getattr(response, "content", "") or str(response)
         if not str(answer_text).strip():
             raise ValueError("LLM 응답이 비어 있습니다.")
+        # 재구성 한 줄 앞에 붙이기
+        restructured = state.get("restructured_question", "").strip()
+        if restructured:
+            answer_text = f"{restructured}\n\n{str(answer_text).strip()}"
+        else:
+            answer_text = str(answer_text).strip()
         return {
-            "answer_draft": str(answer_text).strip(),
+            "answer_draft": answer_text,
             "debug_trace": _append_trace(
                 state,
                 "generate_answer_node",
@@ -813,6 +905,7 @@ def build_question_graph():
     builder.add_node("init_request_node", init_request_node)
     builder.add_node("prerequisite_check_node", prerequisite_check_node)
     builder.add_node("analyze_question_node", analyze_question_node)
+    builder.add_node("restructure_question_node", restructure_question_node)
     builder.add_node("resolve_collection_node", resolve_collection_node)
     builder.add_node("retrieve_context_node", retrieve_context_node)
     builder.add_node("route_perspective_node", route_perspective_node)
@@ -823,12 +916,10 @@ def build_question_graph():
     builder.set_entry_point("init_request_node")
     builder.add_edge("init_request_node", "prerequisite_check_node")
     builder.add_edge("prerequisite_check_node", "analyze_question_node")
-    builder.add_edge("prerequisite_check_node", "resolve_collection_node")
+    builder.add_edge("analyze_question_node", "restructure_question_node")
+    builder.add_edge("restructure_question_node", "resolve_collection_node")
     builder.add_edge("resolve_collection_node", "retrieve_context_node")
-    builder.add_edge(
-        ["analyze_question_node", "retrieve_context_node"],
-        "route_perspective_node",
-    )
+    builder.add_edge("retrieve_context_node", "route_perspective_node")
     builder.add_edge("route_perspective_node", "build_prompt_input_node")
     builder.add_edge("build_prompt_input_node", "generate_answer_node")
     builder.add_edge("generate_answer_node", "finalize_response_node")

@@ -274,8 +274,8 @@ return {
 | 날짜 | 항목 | 상태 | 비고 |
 |------|------|------|------|
 | 2026-04-13 | 계획 수립 | ✅ Done | 간단함 원칙 적용 |
-| - | `prompts.py` 추가 | ⏳ Not Started | 한 줄 재해석 프롬프트 |
-| - | `graph.py` 상태/노드 | ⏳ Not Started | 2개 필드 + 1개 노드 |
-| - | `graph.py` 엣지 연결 | ⏳ Not Started | 워크플로우 순서 조정 |
-| - | `generate_answer_node` 수정 | ⏳ Not Started | 앞에 재구성 붙이기 |
+| 2026-04-13 | `prompts.py` 추가 | ✅ Done | PROMPT_RESTRUCTURE_QUESTION 상수, chat_history 포함 |
+| 2026-04-13 | `graph.py` 상태/노드 | ✅ Done | restructured_question, restructure_failed 필드 + restructure_question_node |
+| 2026-04-13 | `graph.py` 엣지 연결 | ✅ Done | 계획서 기준 순차 파이프라인으로 수정 |
+| 2026-04-13 | `generate_answer_node` 수정 | ✅ Done | 계획서 기준 프리픽스 없이 재구성 질문만 앞에 붙이기 |
 | - | `test_graph.py` 테스트 | ⏳ Not Started | 4가지 케이스 검증
