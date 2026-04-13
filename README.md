@@ -42,7 +42,7 @@ uv run python scripts/chunk_and_embed.py
 ### 4단계 — 앱 실행
 
 ```bash
-streamlit run app.py
+uv run streamlit app.py
 ```
 
 ### 5단계 — LangGraph 콘솔 테스트
