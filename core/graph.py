@@ -505,9 +505,9 @@ def restructure_question_node(state: GraphState) -> GraphState:
     )
 
     try:
-        if os.getenv("QUESTION_SLAYER_ENABLE_LLM") != "1":
+        if os.getenv("QUESTION_SLAYER_ENABLE_LLM", "").strip() != "1":
             raise ValueError("QUESTION_SLAYER_ENABLE_LLM이 활성화되지 않았습니다.")
-        if not os.getenv("OPENAI_API_KEY"):
+        if not os.getenv("OPENAI_API_KEY", "").strip():
             raise ValueError("OPENAI_API_KEY가 설정되지 않았습니다.")
 
         llm = _create_llm()
@@ -594,7 +594,7 @@ def retrieve_context_node(state: GraphState) -> GraphState:
 
     resolved_collection_name = state.get("resolved_collection_name")
     retrieval_query = state.get("normalized_question") or state.get("question", "")
-    if os.getenv("QUESTION_SLAYER_ENABLE_REMOTE_RAG") != "1":
+    if os.getenv("QUESTION_SLAYER_ENABLE_REMOTE_RAG", "").strip() != "1":
         return {
             "retrieval_query": retrieval_query,
             "retrieved_docs": [],
@@ -803,9 +803,9 @@ def generate_answer_node(state: GraphState) -> GraphState:
     )
 
     try:
-        if os.getenv("QUESTION_SLAYER_ENABLE_LLM") != "1":
+        if os.getenv("QUESTION_SLAYER_ENABLE_LLM", "").strip() != "1":
             raise ValueError("QUESTION_SLAYER_ENABLE_LLM이 활성화되지 않았습니다.")
-        if not os.getenv("OPENAI_API_KEY"):
+        if not os.getenv("OPENAI_API_KEY", "").strip():
             raise ValueError("OPENAI_API_KEY가 설정되지 않았습니다.")
         llm = _create_llm()
         response = llm.invoke(prompt_text)
@@ -848,10 +848,14 @@ def generate_answer_node(state: GraphState) -> GraphState:
 
 def finalize_response_node(state: GraphState) -> GraphState:
     """외부에 반환할 최종 payload를 구성합니다."""
+    improvement_tip = (state.get("improvement_tip") or "").strip()
+
     if state.get("status") == "error":
         answer_final = state.get("answer_draft") or (
             "요청을 처리하지 못했습니다. 입력값을 확인한 뒤 다시 시도해주세요."
         )
+        if improvement_tip:
+            answer_final += f"\n\n---\n💡 다음 번 팁:\n{improvement_tip}"
         return {
             "answer_final": answer_final,
             "answer": answer_final,
@@ -867,6 +871,8 @@ def finalize_response_node(state: GraphState) -> GraphState:
     answer_final = state.get("answer_draft") or (
         "현재 생성된 답변이 없습니다. 질문을 조금 더 구체적으로 입력해주세요."
     )
+    if improvement_tip:
+        answer_final += f"\n\n---\n💡 다음 번 팁:\n{improvement_tip}"
     return {
         "status": state.get("status", "ok"),
         "answer_final": answer_final,
