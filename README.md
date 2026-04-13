@@ -2,7 +2,7 @@
 
 > 질문을 못 만드는 학습자를 위한 AI 기반 학습 도우미
 
-**배포 URL**: https://question-slayer-cfxpquyozl2kxbc3rxtypj.streamlit.app
+**배포 URL**:[ https://question-slayer-cfxpquyozl2kxbc3rxtypj.streamlit.app](https://question-slayer-de7pihwiprkfax68hn8wad.streamlit.app)
 
 ---
 
