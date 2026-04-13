@@ -5,7 +5,24 @@
 # - 질문 교정 가이드 프롬프트: 현재 Bloom 수준 → 상위 수준 질문 유도 피드백
 # - 용어 설명 프롬프트: 특정 용어에 대한 간결한 정의 반환
 
-from typing import Optional
+from __future__ import annotations
+
+from typing import Any, Optional
+
+
+# ============================================================================
+# 관점 제목 매핑 (graph.py / fallback 에서 사용)
+# ============================================================================
+
+PERSPECTIVE_TITLES: dict[str, str] = {
+    "concept":   "개념 중심 설명",
+    "principle": "원리 중심 설명",
+    "analogy":   "비유 중심 설명",
+    "relation":  "관계 중심 설명",
+    "usage":     "활용 중심 설명",
+    "caution":   "주의사항 중심 설명",
+}
+
 
 
 # ============================================================================
@@ -323,6 +340,9 @@ def get_perspective_prompt(
     context: str,
     subject: str,
     interests: Optional[str] = None,
+    bloom_label: Optional[str] = None,
+    improvement_tip: Optional[str] = None,
+    chat_history: Optional[list[dict[str, Any]]] = None,
 ) -> str:
     """선택된 관점에 맞는 프롬프트 템플릿에 변수를 주입해 반환합니다.
 
@@ -332,6 +352,9 @@ def get_perspective_prompt(
         context: RAG 검색 결과
         subject: 학습 과목
         interests: 사용자 관심사 (analogy 관점에서만 사용)
+        bloom_label: Bloom 단계 레이블 (graph.py에서 주입, 선택적)
+        improvement_tip: 질문 개선 팁 (graph.py에서 주입, 선택적)
+        chat_history: 대화 기록 (graph.py에서 주입, 선택적)
 
     Returns:
         변수가 주입된 프롬프트 문자열
@@ -356,17 +379,65 @@ def get_perspective_prompt(
         )
 
     if key == "analogy":
-        return templates[key].format(
+        core_prompt = templates[key].format(
             question=question,
             context=context,
             subject=subject,
             interests=interests or "일상생활",
         )
+    else:
+        core_prompt = templates[key].format(
+            question=question,
+            context=context,
+            subject=subject,
+        )
 
-    return templates[key].format(
-        question=question,
-        context=context,
-        subject=subject,
+    # graph.py에서 추가 컨텍스트가 주입된 경우 부록 형태로 추가
+    extras: list[str] = []
+    if bloom_label:
+        extras.append(f"【Bloom 수준】\n{bloom_label}")
+    if improvement_tip:
+        extras.append(f"【질문 개선 팁】\n{improvement_tip}")
+    if chat_history:
+        lines = [
+            f"- {m.get('role', '')}: {str(m.get('content', '')).strip()}"
+            for m in chat_history
+            if str(m.get("content", "")).strip()
+        ]
+        if lines:
+            extras.append("【대화 기록】\n" + "\n".join(lines))
+
+    if extras:
+        return core_prompt + "\n\n" + "\n\n".join(extras)
+    return core_prompt
+
+
+def build_fallback_answer(
+    question: str,
+    perspective: str,
+    subject: str,
+    retrieval_context: str,
+    improvement_tip: Optional[str] = None,
+) -> str:
+    """LLM 호출이 어려울 때 사용할 보수적 fallback 답변을 생성합니다."""
+    preview = retrieval_context.strip().replace("\n", " ")
+    preview = preview[:500] + ("..." if len(preview) > 500 else "")
+
+    if preview:
+        return (
+            f"[{subject} | {PERSPECTIVE_TITLES.get(perspective, '학습 설명')}]\n"
+            f"질문: {question}\n\n"
+            "검색된 학습 자료를 바탕으로 보면 다음 내용을 우선 참고할 수 있습니다.\n"
+            f"{preview}\n\n"
+            f"학습 팁: {improvement_tip or '핵심 용어와 조건을 함께 질문하면 더 정확한 답을 받을 수 있습니다.'}"
+        )
+
+    return (
+        f"[{subject} | {PERSPECTIVE_TITLES.get(perspective, '학습 설명')}]\n"
+        f"질문: {question}\n\n"
+        "현재 검색된 학습 컨텍스트가 없어 일반적인 설명만 제공할 수 있습니다. "
+        "정확도를 높이려면 과목을 다시 확인하고, 핵심 키워드나 상황을 더 구체적으로 적어주세요.\n\n"
+        f"학습 팁: {improvement_tip or '예: 어떤 상황에서 쓰는지, 무엇과 비교할지까지 함께 적어보세요.'}"
     )
 
 
