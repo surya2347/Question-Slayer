@@ -211,21 +211,22 @@ for msg in st.session_state.messages:
 
 st.markdown("---")
 
-# 관점 선택 라디오 (index=None → 선택 해제 허용)
+# 관점 선택 버튼 (토글 방식: 다시 누르면 해제 → auto)
 p_labels = list(PERSPECTIVES.values())
 p_keys   = list(PERSPECTIVES.keys())
 current_p = st.session_state.perspective
-current_idx = p_keys.index(current_p) if current_p in p_keys else None
-selected_label = st.radio(
-    "관점 선택",
-    p_labels,
-    horizontal=True,
-    index=current_idx,
-    label_visibility="collapsed",
-)
-st.session_state.perspective = (
-    p_keys[p_labels.index(selected_label)] if selected_label else None
-)
+
+perspective_cols = st.columns(len(PERSPECTIVES))
+for i, (key, label) in enumerate(PERSPECTIVES.items()):
+    with perspective_cols[i]:
+        btn_type = "primary" if current_p == key else "secondary"
+        if st.button(label, use_container_width=True, key=f"perspective_{key}", type=btn_type):
+            # 같은 버튼 다시 누르면 해제 (auto)
+            if current_p == key:
+                st.session_state.perspective = None
+            else:
+                st.session_state.perspective = key
+            st.rerun()
 
 col_input1, col_input2 = st.columns([6, 1])
 with col_input1:
@@ -284,21 +285,3 @@ if send_btn and user_input:
         # 전송 후 관점 선택 초기화 (재선택 유도)
         st.session_state.perspective = None
         st.rerun()
-
-if st.session_state.messages and st.session_state.messages[-1]["role"] == "assistant":
-    col_btn1, col_btn2, col_btn3 = st.columns(3)
-
-    with col_btn1:
-        if st.button("😕 이해 안됨", use_container_width=True, key="not_understand"):
-            st.session_state.retryCount += 1
-            st.session_state.notUnderstanding += 1
-            st.rerun()
-    with col_btn2:
-        if st.button("🔄 다른 방식", use_container_width=True, key="different"):
-            st.session_state.retryCount = 2
-            st.rerun()
-    with col_btn3:
-        if st.button("✅ 이해함", use_container_width=True, key="understood"):
-            st.session_state.understandingLevel = min(100, st.session_state.understandingLevel + 10)
-            st.session_state.currentLevel = (st.session_state.understandingLevel // 20) + 1
-            st.rerun()
