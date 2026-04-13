@@ -18,13 +18,11 @@ with st.sidebar:
     st.markdown("### 📊 Insight")
     st.markdown("---")
 
-    if "subject" not in st.session_state:
-        st.session_state.subject = None
-    if "interests" not in st.session_state:
-        st.session_state.interests = []
+    if "subject_label" not in st.session_state:
+        st.session_state.subject_label = None
 
-    if st.session_state.get("subject"):
-        st.info(f"✅ {st.session_state.subject}")
+    if st.session_state.get("subject_label"):
+        st.info(f"✅ {st.session_state.subject_label}")
     else:
         st.warning("⚙️ 과목 미설정")
 
@@ -41,10 +39,11 @@ def _collect_stats(messages: list) -> dict:
     assistant_msgs = [m for m in messages if m.get("role") == "assistant"]
 
     bloom_levels   = [m.get("bloom_level", 1) for m in assistant_msgs]
+    # 관점 집계: graph가 확정한 assistant 메시지 기준
     perspectives   = [
-        m.get("perspective", "concept")
-        for m in messages
-        if m.get("role") == "user"
+        m.get("perspective")
+        for m in assistant_msgs
+        if m.get("perspective") is not None
     ]
     times          = [m.get("time", "") for m in assistant_msgs]
 

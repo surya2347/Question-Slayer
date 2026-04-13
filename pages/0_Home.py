@@ -1,6 +1,7 @@
 import streamlit as st
 
-from core.utils import SUBJECT_KEYWORDS, save_interests, load_interests
+from core.graph import SUBJECT_COLLECTION_MAP
+from core.utils import save_interests, load_interests
 
 # 고정 user_id (로그인 없는 단일 사용자 구조)
 _USER_ID = "user_default"
@@ -54,9 +55,11 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# 세션 상태 초기화
-if "subject" not in st.session_state:
-    st.session_state.subject = None
+# 세션 상태 초기화 (app.py 전역 초기화 보완)
+if "subject_id" not in st.session_state:
+    st.session_state.subject_id = None
+if "subject_label" not in st.session_state:
+    st.session_state.subject_label = None
 if "interests" not in st.session_state:
     # 저장된 관심사가 있으면 파일에서 복원
     st.session_state.interests = load_interests(_USER_ID)
@@ -70,10 +73,13 @@ with col1:
     st.markdown('<div class="section-card">', unsafe_allow_html=True)
     st.markdown('<div class="section-title">📚 학습 과목</div>', unsafe_allow_html=True)
 
-    subject_options = ["선택하기"] + list(SUBJECT_KEYWORDS.keys())
+    # SUBJECT_COLLECTION_MAP 기반 과목 선택 (영문 키 → 한글 표시명)
+    _subject_ids = list(SUBJECT_COLLECTION_MAP.keys())
+    _subject_labels = [SUBJECT_COLLECTION_MAP[k]["label"] for k in _subject_ids]
+    subject_options = ["선택하기"] + _subject_labels
     current_idx = (
-        subject_options.index(st.session_state.subject)
-        if st.session_state.subject in subject_options
+        _subject_labels.index(st.session_state.subject_label) + 1
+        if st.session_state.subject_label in _subject_labels
         else 0
     )
     subject = st.selectbox(
@@ -83,10 +89,14 @@ with col1:
         label_visibility="collapsed",
     )
     if subject != "선택하기":
-        st.session_state.subject = subject
+        # 한글 표시명으로부터 영문 키 역산
+        _selected_idx = _subject_labels.index(subject)
+        st.session_state.subject_id = _subject_ids[_selected_idx]
+        st.session_state.subject_label = subject
         st.success(f"✅ {subject} 선택됨")
     else:
-        st.session_state.subject = None
+        st.session_state.subject_id = None
+        st.session_state.subject_label = None
         st.warning("과목을 선택해주세요")
 
     st.markdown('</div>', unsafe_allow_html=True)
@@ -122,8 +132,8 @@ st.markdown('<div class="section-title">⚙️ 현재 설정</div>', unsafe_allo
 col_status1, col_status2 = st.columns([1, 1], gap="medium")
 
 with col_status1:
-    if st.session_state.get("subject"):
-        st.info(f"📚 **과목:** {st.session_state.subject}")
+    if st.session_state.get("subject_label"):
+        st.info(f"📚 **과목:** {st.session_state.subject_label}")
     else:
         st.warning("📚 **과목:** 미설정")
 

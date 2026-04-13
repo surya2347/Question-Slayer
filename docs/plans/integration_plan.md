@@ -244,3 +244,11 @@ for key, value in defaults.items():
 ---
 
 ## 구현 기록
+
+* **작업 내용 (2026-04-13)**: integration_plan.md 체크리스트 기준 전 항목 구현 완료.
+  - `app.py`: `subject`/`interests` → `subject_id`/`subject_label`/`interests`/`messages`/`perspective`/`session_scope_id` 전역 초기화로 교체.
+  - `pages/0_Home.py`: `SUBJECT_KEYWORDS` import → `SUBJECT_COLLECTION_MAP` import 교체. selectbox를 한글 label 표시 + 영문 키 저장 구조로 전환. `st.session_state.subject` 참조 전부 `subject_id`/`subject_label`로 교체.
+  - `pages/1_Chat.py`: `_dummy_bloom()`, `get_dummy_response()` 제거. `run_question_graph()` import 및 send 핸들러 연동. `subject_id` 미설정 시 전송 차단. assistant 메시지에 `perspective`/`bloom_level`/`bloom_label`/`improvement_tip`/`citations`/`error_code`/`error_message` 저장. 사이드바 `subject` → `subject_label` 교체.
+  - `pages/2_Insight.py`: perspectives 집계 기준을 user → assistant 메시지로 변경. `perspective`가 `None`인 경우 집계 제외. 사이드바 `subject` → `subject_label` 교체.
+* **검증 결과**: 4개 파일 `py_compile` 통과.
+* **계획 대비 편차**: user 메시지의 관점 키를 `perspective` → `selected_perspective`로 변경 (graph 확정값 `perspective`와 구분).

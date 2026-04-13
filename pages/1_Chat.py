@@ -3,6 +3,8 @@ import plotly.graph_objects as go
 import pandas as pd
 from datetime import datetime
 
+from core.graph import run_question_graph
+
 st.set_page_config(
     page_title="Chat - Question-Slayer",
     page_icon="💬",
@@ -39,15 +41,9 @@ with st.sidebar:
     st.markdown('<div class="sidebar-title">🎓 AI 합</div>', unsafe_allow_html=True)
     st.markdown('---')
     
-    # 보안 검증: session_state 초기화
-    if "subject" not in st.session_state:
-        st.session_state.subject = None
-    if "interests" not in st.session_state:
-        st.session_state.interests = []
-    
     st.markdown('<div class="sidebar-subtitle">📚 현재 학습 과목</div>', unsafe_allow_html=True)
-    if st.session_state.get("subject"):
-        st.info(f"✅ {st.session_state.subject}")
+    if st.session_state.get("subject_label"):
+        st.info(f"✅ {st.session_state.subject_label}")
     else:
         st.warning("⚙️ 과목 미설정")
     
@@ -146,9 +142,7 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# 세션 상태 초기화
-if "messages" not in st.session_state:
-    st.session_state.messages = []
+# 세션 상태 초기화 (Chat 페이지 고유 키만 — 공통 키는 app.py에서 초기화)
 if "retryCount" not in st.session_state:
     st.session_state.retryCount = 0
 if "understandingLevel" not in st.session_state:
@@ -159,8 +153,6 @@ if "notUnderstanding" not in st.session_state:
     st.session_state.notUnderstanding = 0
 if "currentLevel" not in st.session_state:
     st.session_state.currentLevel = 1
-if "perspective" not in st.session_state:
-    st.session_state.perspective = None
 
 # 관점 옵션 (key → 표시 라벨)
 PERSPECTIVES: dict[str, str] = {
@@ -182,31 +174,6 @@ BLOOM_BADGE: dict[int, tuple] = {
     6: ("#e0f2f1", "#00897b", "평가"),
 }
 
-
-def _dummy_bloom(question: str) -> tuple[int, str]:
-    """임시 Bloom 판별 — graph.py 연결 전 키워드 1차 판별용."""
-    kw_map = {
-        6: ["평가", "더 나은", "장단점", "판단", "추천"],
-        5: ["설계", "결합", "새로운", "통합", "조합"],
-        4: ["차이점", "비교", "구조", "분류", "원인"],
-        3: ["활용", "적용", "사용하면", "실무에서"],
-        2: ["왜", "설명", "어떻게", "의미"],
-    }
-    names = {1: "지식", 2: "이해", 3: "응용", 4: "분석", 5: "종합", 6: "평가"}
-    for level in sorted(kw_map.keys(), reverse=True):
-        if any(kw in question for kw in kw_map[level]):
-            return level, names[level]
-    return 1, "지식"
-
-
-def get_dummy_response(retry_count):
-    modes = {
-        0: "포인터는 메모리 주소를 저장하는 변수입니다. 일반 변수가 값을 저장한다면, 포인터는 그 값이 저장된 위치(주소)를 저장합니다.",
-        1: "간단히: 포인터 = 주소를 저장하는 상자",
-        2: "📌 비유: 포인터는 택배 주소같아요. 실제 물건의 위치를 가리킵니다.",
-        3: "Step: 1) 메모리는 주소로 구분 2) 포인터는 그 주소 저장 3) * 로 값 접근",
-    }
-    return modes.get(min(retry_count, 3), "포인터 정리: 메모리 주소를 저장 → 주소로 변수 접근 → 동적 메모리에 필수")
 
 col_chat, col_insight = st.columns([1.3, 1], gap="large")
 
@@ -274,30 +241,56 @@ with col_chat:
         send_btn = st.button("➤", use_container_width=True)
     
     if send_btn and user_input:
-        time_str = datetime.now().strftime("%H:%M")
-        # 관점 미선택 시 기본값 "concept" 적용
-        used_perspective = st.session_state.perspective or "concept"
-        st.session_state.messages.append({
-            "role": "user",
-            "content": user_input,
-            "time": time_str,
-            "perspective": used_perspective,
-        })
-        response = get_dummy_response(st.session_state.retryCount)
-        # Bloom 판별 (graph.py 연결 전 키워드 1차 판별)
-        b_level, b_name = _dummy_bloom(user_input)
-        st.session_state.messages.append({
-            "role": "assistant",
-            "content": response,
-            "time": time_str,
-            "bloom_level": b_level,
-            "bloom_name": b_name,
-        })
-        st.session_state.retryCount = 0
-        st.session_state.totalQuestions += 1
-        # 전송 후 관점 선택 초기화 (재선택 유도)
-        st.session_state.perspective = None
-        st.rerun()
+        # subject_id 미설정 방어
+        if not st.session_state.get("subject_id"):
+            st.warning("⚙️ Home 페이지에서 과목을 먼저 선택해주세요.")
+        else:
+            time_str = datetime.now().strftime("%H:%M")
+            # 관점 미선택 시 기본값 "auto" 적용
+            used_perspective = st.session_state.perspective or "auto"
+            st.session_state.messages.append({
+                "role": "user",
+                "content": user_input,
+                "time": time_str,
+                "selected_perspective": used_perspective,
+            })
+
+            # graph 실행 — payload 구성
+            payload = {
+                "question": user_input,
+                "subject_id": st.session_state.subject_id,
+                "selected_perspective": used_perspective,
+                "interests": st.session_state.get("interests", []),
+                "chat_history": [
+                    {"role": m["role"], "content": m["content"]}
+                    for m in st.session_state.messages
+                ],
+                "session_scope_id": st.session_state.get("session_scope_id"),
+            }
+            result = run_question_graph(payload)
+
+            # graph 결과를 assistant 메시지로 저장
+            answer_text = result.get("answer", "")
+            if result.get("status") == "error" and not answer_text:
+                answer_text = result.get("error_message") or "요청을 처리하지 못했습니다."
+
+            st.session_state.messages.append({
+                "role": "assistant",
+                "content": answer_text,
+                "time": time_str,
+                "perspective": result.get("perspective"),
+                "bloom_level": result.get("bloom_level"),
+                "bloom_label": result.get("bloom_label"),
+                "improvement_tip": result.get("improvement_tip"),
+                "citations": result.get("citations", []),
+                "error_code": result.get("error_code"),
+                "error_message": result.get("error_message"),
+            })
+            st.session_state.retryCount = 0
+            st.session_state.totalQuestions += 1
+            # 전송 후 관점 선택 초기화 (재선택 유도)
+            st.session_state.perspective = None
+            st.rerun()
     
     if st.session_state.messages and st.session_state.messages[-1]["role"] == "assistant":
         col_btn1, col_btn2, col_btn3 = st.columns(3)

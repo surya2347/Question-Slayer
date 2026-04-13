@@ -44,11 +44,18 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# 세션 상태 초기화
-if "subject" not in st.session_state:
-    st.session_state.subject = None
-if "interests" not in st.session_state:
-    st.session_state.interests = []
+# 전역 세션 상태 초기화 — 모든 페이지가 공유하는 공통 키
+_SESSION_DEFAULTS = {
+    "subject_id": None,       # 영문 과목 식별자 (graph 입력용)
+    "subject_label": None,    # 한글 과목 표시명 (UI 표시용)
+    "interests": [],          # 비유 설명용 관심사 목록
+    "messages": [],           # 대화 이력
+    "perspective": None,      # 현재 선택된 관점 (영문 키)
+    "session_scope_id": None, # 세션 구분자 (uuid 기반)
+}
+for _key, _default in _SESSION_DEFAULTS.items():
+    if _key not in st.session_state:
+        st.session_state[_key] = _default
 
 # 메인 페이지
 st.title("🎯 Question-Slayer")
@@ -88,8 +95,8 @@ st.markdown("""
 st.markdown("---")
 col1, col2 = st.columns(2)
 with col1:
-    if st.session_state.get("subject"):
-        st.success(f"✅ 현재 학습 과목: **{st.session_state.subject}**")
+    if st.session_state.get("subject_label"):
+        st.success(f"✅ 현재 학습 과목: **{st.session_state.subject_label}**")
     else:
         st.info("📚 왼쪽 사이드바에서 학습 과목을 설정해주세요")
 with col2:
