@@ -118,7 +118,7 @@ def score_bloom_by_keyword(question: str) -> dict:
         question: 사용자 질문 문자열
 
     Returns:
-        {level, name_ko, name_en, keywords_found, confidence, method} dict
+        {level, name_ko, keywords_found, confidence, method} dict
     """
     _CONFIDENCE_MAP = {1: 0.6, 2: 0.75}  # 3개 이상은 아래에서 0.9 처리
 
@@ -189,6 +189,8 @@ def pick_best_interest(question: str, interests: list[str]) -> str:
 # ============================================================================
 
 # 과목별 트리거 키워드
+# 아직 제대로 NCS 과목에 제대로 적용되지 않음
+# 임시 정도로 정보처리기사, 빅데이터분석기사, 정보보안기사, 네트워크관리사로 넣어놓음.
 SUBJECT_KEYWORDS: dict[str, list[str]] = {
     "정보처리기사": ["정보처리", "자료구조", "운영체제", "데이터베이스", "소프트웨어공학", "네트워크", "보안", "정렬 알고리즘", "탐색 알고리즘"],
     "빅데이터분석기사": ["빅데이터", "머신러닝", "딥러닝", "데이터분석", "통계", "R언어", "파이썬 분석", "시각화"],
@@ -315,3 +317,41 @@ if __name__ == "__main__":
         print(f"  {mark} [{result['name_ko']} Lv{result['level']}] conf={result['confidence']} | {q}")
         if result["keywords_found"]:
             print(f"       → 매칭 키워드: {result['keywords_found']}")
+
+    # 과목 탐지 검증
+    print("\n=== 과목 탐지 테스트 ===")
+    subject_samples = [
+        ("TCP와 UDP의 차이점은 무엇인가요?",        "네트워크관리사"),
+        ("머신러닝 알고리즘을 설명해주세요",          "빅데이터분석기사"),
+        ("엑셀 VLOOKUP 함수 사용법이 뭔가요?",      "컴퓨터활용능력"),
+        ("암호화와 복호화의 원리가 뭔가요?",          "정보보안기사"),
+        ("완전히 관계없는 질문입니다",               "일반"),
+    ]
+    for q, expected in subject_samples:
+        result = detect_subject(q)
+        mark = "✅" if result["subject"] == expected else "❌"
+        print(f"  {mark} [{result['subject']}] conf={result['confidence']} | {q}")
+        if result["keywords_found"]:
+            print(f"       → 매칭 키워드: {result['keywords_found']}")
+
+    # 관심사 저장/불러오기 검증
+    print("\n=== 관심사 저장/불러오기 테스트 ===")
+    _test_id = "_test_user"
+    _test_interests = ["게임", "음악", "영화"]
+
+    save_interests(_test_id, _test_interests)
+    loaded = load_interests(_test_id)
+    mark = "✅" if loaded == _test_interests else "❌"
+    print(f"  {mark} 저장: {_test_interests}")
+    print(f"  {mark} 불러오기: {loaded}")
+
+    # 없는 유저 테스트
+    empty = load_interests("_nonexistent_user")
+    mark = "✅" if empty == [] else "❌"
+    print(f"  {mark} 없는 유저 → {empty}")
+
+    # 테스트 파일 정리
+    test_path = _PROFILES_DIR / f"{_test_id}.json"
+    if test_path.exists():
+        os.remove(test_path)
+        print("  🧹 테스트 파일 정리 완료")
