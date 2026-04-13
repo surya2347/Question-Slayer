@@ -69,7 +69,10 @@ payload = {
     "question": user_input,
     "subject_id": st.session_state.subject_id,
     "selected_perspective": st.session_state.perspective or "auto",
-    [//] 해당 perspective을 가져오는게 하는게. streamlit chat 화면에 있는 질문 입력 칸 바로 위에 있는 개념, 원리, 비유, 관계, 활용, 주의사항 라디오 버튼들 중 하나를 클릭했을 때, 해당 관점으로 세팅되는게 맞는지 확인해줘. 그리고 이게 streamlit에는 개념,원리 이런 식으로 한글로 되어있는데, 영어나 관점 label? 로 전달 되어야 하지 않나? core에는 관점에 한글명이 없을텐데. 확인해줘.
+    # ✅ 검증 완료: Chat.py의 PERSPECTIVES dict가 {영문키: "한글라벨"} 구조.
+    # 라디오 버튼 선택 시 p_keys[p_labels.index(selected_label)]로 역변환하여
+    # st.session_state.perspective에는 "concept", "principle" 등 영문 키가 저장됨.
+    # graph에는 영문 키가 그대로 전달되므로 문제 없음.
     "interests": st.session_state.get("interests", []),
     "chat_history": [
         {"role": m["role"], "content": m["content"]}
@@ -91,7 +94,9 @@ st.session_state.messages.append({
     "perspective": result.get("perspective"),
     "bloom_level": result.get("bloom_level"),
     "bloom_label": result.get("bloom_label"),
-    [//] 이것도 내가 알기로,, core에서는 영어명으로 bloom단계 세팅이 되어 있을텐데, 아닌가? 이거 문제없나? 이거 한글로 저장되는지 영어로 저장되는지 한번 확인해줘.
+    # ✅ 검증 완료: score_bloom_by_keyword()가 BLOOM_LEVELS[level]["name_ko"]를 반환.
+    # bloom_label은 "지식", "이해", "응용" 등 한글로 저장됨.
+    # Chat.py의 BLOOM_BADGE도 한글 기준이므로 일치. 별도 변환 불필요.
     "improvement_tip": result.get("improvement_tip"),
     "citations": result.get("citations", []),
     "error_code": result.get("error_code"),
@@ -172,3 +177,36 @@ for key, value in defaults.items():
 | 2 | 과목 선택 교체 | `pages/0_Home.py` | #1 완료 |
 | 3 | 더미 교체 + graph 실연동 | `pages/1_Chat.py` | #1, #2 완료 |
 | 4 | 관점 집계 기준 수정 | `pages/2_Insight.py` | #3 완료 |
+
+---
+
+## 구현 시 주의사항 체크리스트
+
+### app.py
+- [ ] 기존 `subject` 키 초기화 코드를 `subject_id`, `subject_label`로 교체 (하위 호환 주의)
+- [ ] `session_scope_id` 초기화 시 `uuid` 기반 고정값으로 생성할 것 (매 rerun마다 새로 생성하면 안 됨)
+
+### pages/0_Home.py
+- [ ] `SUBJECT_KEYWORDS` import 제거, `SUBJECT_COLLECTION_MAP` import로 교체
+- [ ] selectbox 옵션값이 한글 표시명(`label`)이고, 저장값이 영문 키(`subject_id`)임을 혼동하지 않을 것
+- [ ] 저장 시 `st.session_state.subject_id`와 `st.session_state.subject_label` 양쪽 모두 저장
+- [ ] 기존 `st.session_state.subject` 참조 전부 제거 (사이드바 표시 포함)
+
+### pages/1_Chat.py
+- [ ] `_dummy_bloom()` 함수 제거
+- [ ] `get_dummy_response()` 함수 제거
+- [ ] `run_question_graph()` import 추가 (`from core.graph import run_question_graph`)
+- [ ] payload의 `subject_id`는 `st.session_state.subject_id` 사용 (None 가능성 방어 필요)
+- [ ] `subject_id`가 None이면 전송 버튼 비활성화 또는 경고 배너 표시
+- [ ] `selected_perspective`는 이미 영문 키로 저장되어 있으므로 변환 불필요
+- [ ] assistant 메시지에 `perspective`, `bloom_level`, `bloom_label`, `improvement_tip`, `citations` 저장
+- [ ] `result["status"] == "error"` 일 때 error_message를 화면에 표시하는 분기 추가
+- [ ] `chat_history` 구성 시 `role`/`content` 키만 전달 (메타데이터 제외)
+- [ ] 기존 `st.session_state.subject` 사이드바 표시를 `subject_label`로 교체
+
+### pages/2_Insight.py
+- [ ] `_collect_stats()` 내 `perspectives` 집계 기준을 user → assistant 메시지로 변경
+- [ ] assistant 메시지에 `perspective`가 없는 경우(`None`) 집계에서 제외 처리
+- [ ] `bloom_label`이 한글(`"지식"` 등)로 저장됨을 전제로 차트 레이블 구성
+- [ ] 기존 `st.session_state.subject` 사이드바 표시를 `subject_label`로 교체
+- [ ] 데이터 없을 때(`has_data == False`) 더미 데이터가 아닌 안내 문구만 표시되는지 확인
