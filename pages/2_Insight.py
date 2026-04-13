@@ -159,38 +159,50 @@ with col_right:
         x_vals = list(range(1, len(stats["bloom_levels"]) + 1))
         y_vals = stats["bloom_levels"]
         level_names = [BLOOM_LEVELS[lv]["name_ko"] for lv in y_vals]
+
+        fig_line = go.Figure(go.Scatter(
+            x=x_vals,
+            y=y_vals,
+            mode="lines+markers",
+            line=dict(color="#4f46e5", width=2),
+            marker=dict(size=8, color="#4f46e5"),
+            text=level_names,
+            hovertemplate="%{x}번째 질문<br>Lv%{y} %{text}<extra></extra>",
+        ))
+        fig_line.update_layout(
+            height=300,
+            margin=dict(l=20, r=20, t=20, b=20),
+            yaxis=dict(
+                title="Bloom 레벨",
+                range=[0.5, 6.5],
+                dtick=1,
+                tickvals=list(range(1, 7)),
+                ticktext=[f"Lv{i} {BLOOM_LEVELS[i]['name_ko']}" for i in range(1, 7)],
+            ),
+            xaxis=dict(title="질문 순서", dtick=1),
+            plot_bgcolor="white",
+        )
+        st.plotly_chart(fig_line, use_container_width=True, config={"displayModeBar": False})
+    elif has_data:
+        # 질문이 정확히 1개인 경우 — 현재 레벨만 단일 포인트로 표시
+        lv = stats["bloom_levels"][0]
+        lv_name = BLOOM_LEVELS[lv]["name_ko"]
+        st.markdown(
+            f"""
+            <div style="display:flex;flex-direction:column;align-items:center;
+                        justify-content:center;height:180px;border:1.5px dashed #c7d2fe;
+                        border-radius:12px;background:#f8f9ff;">
+                <div style="font-size:2rem;font-weight:700;color:#4f46e5;">Lv{lv}</div>
+                <div style="font-size:1rem;color:#6d28d9;margin-top:4px;">{lv_name}</div>
+                <div style="font-size:0.85rem;color:#999;margin-top:10px;">
+                    질문이 2개 이상 쌓이면 성장 곡선이 표시됩니다.
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
     else:
-        # 더미 데이터
-        x_vals = list(range(1, 8))
-        y_vals = [1, 1, 2, 2, 3, 4, 4]
-        level_names = [BLOOM_LEVELS[lv]["name_ko"] for lv in y_vals]
-
-    fig_line = go.Figure(go.Scatter(
-        x=x_vals,
-        y=y_vals,
-        mode="lines+markers",
-        line=dict(color="#4f46e5", width=2),
-        marker=dict(size=8, color="#4f46e5"),
-        text=level_names,
-        hovertemplate="%{x}번째 질문<br>Lv%{y} %{text}<extra></extra>",
-    ))
-    fig_line.update_layout(
-        height=300,
-        margin=dict(l=20, r=20, t=20, b=20),
-        yaxis=dict(
-            title="Bloom 레벨",
-            range=[0.5, 6.5],
-            dtick=1,
-            tickvals=list(range(1, 7)),
-            ticktext=[f"Lv{i} {BLOOM_LEVELS[i]['name_ko']}" for i in range(1, 7)],
-        ),
-        xaxis=dict(title="질문 순서", dtick=1),
-        plot_bgcolor="white",
-    )
-    st.plotly_chart(fig_line, use_container_width=True, config={"displayModeBar": False})
-
-    if not has_data or len(stats["bloom_levels"]) < 2:
-        st.caption("💡 질문이 2개 이상 쌓이면 성장 곡선이 표시됩니다.")
+        st.info("💡 Chat 페이지에서 질문하면 성장 곡선이 표시됩니다.", icon=None)
 
 # ============================================================================
 # 최근 질문 이력
