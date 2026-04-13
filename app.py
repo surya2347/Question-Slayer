@@ -63,33 +63,43 @@ st.markdown("### AI 기반 NCS 자격증 학습 플랫폼")
 st.markdown("---")
 
 st.markdown("""
-## 👋 Welcome to Question-Slayer!
+<p style="font-size:1.15rem; color:#555; margin-bottom:2rem;">
+    <b>Question-Slayer</b>는 Bloom 분류학 기반의 맞춤형 NCS 학습 플랫폼입니다.
+</p>
+""", unsafe_allow_html=True)
 
-**Question-Slayer**는 Bloom 분류학 기반의 맞춤형 학습 플랫폼입니다.
+st.markdown("### 🚀 시작하기")
+st.markdown("")
 
-### 🚀 시작하기
+col_s1, col_s2, col_s3 = st.columns(3, gap="medium")
+with col_s1:
+    st.markdown("""
+    <div style="background:#f0f4ff;border-radius:14px;padding:24px 20px;text-align:center;border:1.5px solid #c7d2fe;">
+        <div style="font-size:2.2rem;margin-bottom:10px;">📚</div>
+        <div style="font-size:1.15rem;font-weight:700;color:#3730a3;margin-bottom:8px;">1. 학습 설정</div>
+        <div style="font-size:0.95rem;color:#555;line-height:1.6;">왼쪽 메뉴에서 <b>Home</b>으로 이동해<br>과목과 관심사를 설정하세요</div>
+    </div>
+    """, unsafe_allow_html=True)
+with col_s2:
+    st.markdown("""
+    <div style="background:#f5f0ff;border-radius:14px;padding:24px 20px;text-align:center;border:1.5px solid #ddd5f5;">
+        <div style="font-size:2.2rem;margin-bottom:10px;">💬</div>
+        <div style="font-size:1.15rem;font-weight:700;color:#6d28d9;margin-bottom:8px;">2. 채팅 시작</div>
+        <div style="font-size:0.95rem;color:#555;line-height:1.6;"><b>Chat</b> 페이지에서<br>관점을 선택하고 질문을 입력하세요</div>
+    </div>
+    """, unsafe_allow_html=True)
+with col_s3:
+    st.markdown("""
+    <div style="background:#f0fdf4;border-radius:14px;padding:24px 20px;text-align:center;border:1.5px solid #bbf7d0;">
+        <div style="font-size:2.2rem;margin-bottom:10px;">📊</div>
+        <div style="font-size:1.15rem;font-weight:700;color:#15803d;margin-bottom:8px;">3. 진행 확인</div>
+        <div style="font-size:0.95rem;color:#555;line-height:1.6;"><b>Insight</b> 페이지에서<br>학습 통계와 진도를 확인하세요</div>
+    </div>
+    """, unsafe_allow_html=True)
 
-1. **📚 학습 설정** → 왼쪽 메뉴에서 **Home**으로 이동하여 과목과 관심사를 설정하세요
-2. **💬 채팅 시작** → **Chat** 페이지에서 질문을 입력하고 학습을 시작하세요
-3. **📊 진행 상황** → 실시간 통계로 학습 진도를 확인하세요
-
-### ✨ 주요 기능
-
-- 🎯 **Bloom 레벨별 질문** - 기억, 이해, 적용, 분석, 평가 5단계
-- 🔄 **다양한 재설명 모드** - 단순화, 비유, 단계별 설명
-- 📈 **개인 학습 통계** - 진도율, 이해도, 재도전 현황
-- 💾 **학습 기록 저장** - 모든 질문과 답변 기록
-
-### 🎓 학습 팁
-
-- 모르는 내용은 **"이해 안됨"** 버튼으로 다시 설명받으세요
-- **"다른 방식"** 버튼으로 다양한 설명 방식을 경험하세요
-- 이해한 후 **"이해함"** 버튼으로 진도를 기록하세요
-
----
-
-**질문이 있으신가요?** Chat 페이지에서 AI 튜터와 대화하세요! 🤖
-""")
+st.markdown("")
+st.markdown("### 🎓 학습 팁")
+st.info("💡 한 질문에 한 관점을 선택해서 질문하는 것이 학습에 효과적입니다.", icon=None)
 
 # 설정 상태 확인
 st.markdown("---")
@@ -104,3 +114,11 @@ with col2:
         st.success(f"✅ 관심사 {len(st.session_state.interests)}개 저장됨")
     else:
         st.info("💡 왼쪽 사이드바에서 관심사를 입력해주세요")
+
+st.markdown("---")
+st.markdown("""
+<p style="font-size:0.8rem;color:#999;line-height:1.7;text-align:center;">
+본 서비스는 한국산업인력공단(NCS)의 학습모듈 데이터를 출처로 명시하고 교육적 목적으로 활용하였습니다.<br>
+수록된 내용 중 국가 외 제3자 저작권이 포함된 시각 자료(도표, 삽화 등)는 기술적/법적 보호를 위해 제외하고 텍스트 기반으로 재구성되었습니다.
+</p>
+""", unsafe_allow_html=True)

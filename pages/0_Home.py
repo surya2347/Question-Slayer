@@ -139,7 +139,14 @@ with col_status1:
 
 with col_status2:
     if st.session_state.get("interests"):
-        st.info(f"💡 **관심사:** {', '.join(st.session_state.interests)}")
+        tags_html = " ".join(
+            f'<span style="display:inline-block;background:#e0e7ff;color:#3730a3;'
+            f'border-radius:12px;padding:3px 12px;margin:3px 2px;font-size:0.88rem;'
+            f'font-weight:600;border:1px solid #c7d2fe;">{tag}</span>'
+            for tag in st.session_state.interests
+        )
+        st.markdown(f"💡 **관심사:**", unsafe_allow_html=False)
+        st.markdown(tags_html, unsafe_allow_html=True)
     else:
         st.warning("💡 **관심사:** 미설정")
 
