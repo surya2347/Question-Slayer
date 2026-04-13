@@ -160,7 +160,7 @@ if "notUnderstanding" not in st.session_state:
 if "currentLevel" not in st.session_state:
     st.session_state.currentLevel = 1
 if "perspective" not in st.session_state:
-    st.session_state.perspective = "concept"
+    st.session_state.perspective = None
 
 # 관점 옵션 (key → 표시 라벨)
 PERSPECTIVES: dict[str, str] = {
@@ -251,17 +251,21 @@ with col_chat:
     
     st.markdown("---")
 
-    # 관점 선택 라디오
+    # 관점 선택 라디오 (index=None → 선택 해제 허용)
     p_labels = list(PERSPECTIVES.values())
     p_keys   = list(PERSPECTIVES.keys())
+    current_p = st.session_state.perspective
+    current_idx = p_keys.index(current_p) if current_p in p_keys else None
     selected_label = st.radio(
         "관점 선택",
         p_labels,
         horizontal=True,
-        index=p_keys.index(st.session_state.perspective),
+        index=current_idx,
         label_visibility="collapsed",
     )
-    st.session_state.perspective = p_keys[p_labels.index(selected_label)]
+    st.session_state.perspective = (
+        p_keys[p_labels.index(selected_label)] if selected_label else None
+    )
 
     col_input1, col_input2 = st.columns([6, 1])
     with col_input1:
@@ -271,11 +275,13 @@ with col_chat:
     
     if send_btn and user_input:
         time_str = datetime.now().strftime("%H:%M")
+        # 관점 미선택 시 기본값 "concept" 적용
+        used_perspective = st.session_state.perspective or "concept"
         st.session_state.messages.append({
             "role": "user",
             "content": user_input,
             "time": time_str,
-            "perspective": st.session_state.perspective,
+            "perspective": used_perspective,
         })
         response = get_dummy_response(st.session_state.retryCount)
         # Bloom 판별 (graph.py 연결 전 키워드 1차 판별)
@@ -289,6 +295,8 @@ with col_chat:
         })
         st.session_state.retryCount = 0
         st.session_state.totalQuestions += 1
+        # 전송 후 관점 선택 초기화 (재선택 유도)
+        st.session_state.perspective = None
         st.rerun()
     
     if st.session_state.messages and st.session_state.messages[-1]["role"] == "assistant":
