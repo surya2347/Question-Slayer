@@ -5,7 +5,15 @@
 
 ---
 
-## 이미 연결된 것들
+## 개요 및 목표
+
+- 목적: `pages/` Streamlit 화면과 `core/` 백엔드 모듈 간 데이터 계약 불일치 해소
+- 범위: 과목 선택 키 통일, 더미 함수 제거 및 graph 실연동, 세션 키 표준화, 관점 집계 기준 수정
+- 원칙: `core/graph.py`의 `SUBJECT_COLLECTION_MAP`, `run_question_graph()` 반환값을 기준으로 pages 쪽을 수정
+
+---
+
+## 연동 현황
 
 아래 4개는 `core/graph.py` 내부에서 이미 완전 연동되어 있습니다. 건드릴 필요 없습니다.
 
@@ -18,7 +26,7 @@
 
 ---
 
-## 연동이 필요한 사안들
+## 모듈별 연동 명세
 
 ### 1. `pages/0_Home.py` ↔ `core/graph.py` — 과목 선택 기준 불일치
 
@@ -169,7 +177,7 @@ for key, value in defaults.items():
 
 ---
 
-## 작업 순서
+## 핵심 플로우
 
 | 순서 | 작업 | 파일 | 선행 조건 |
 |---|---|---|---|
@@ -180,7 +188,29 @@ for key, value in defaults.items():
 
 ---
 
-## 구현 시 주의사항 체크리스트
+## 예외 처리 및 방어 로직
+
+### 입력 방어
+- `subject_id`가 `None`인 상태에서 Chat 전송 시 — 전송 차단 또는 경고 배너 표시
+- `selected_perspective`가 허용 목록 밖일 때 — `"auto"`로 fallback (graph 내부에서도 검증하지만 UI 단에서 1차 방어)
+- `interests`가 빈 리스트일 때 — 비유 외 관점은 정상 동작해야 함
+
+### 세션 상태 불일치
+- 페이지 전환 시 `subject_id` 유실 — `app.py`에서 전역 초기화로 방지
+- `messages`가 없을 때 Insight 진입 — 빈 리스트 기준 안내 문구 표시, 더미 데이터 금지
+- `session_scope_id`가 rerun마다 재생성되지 않도록 `uuid` 기반 고정
+
+### graph 실패 응답
+- `result["status"] == "error"` — error_message를 채팅 화면에 표시, assistant 메시지에 error_code 기록
+- `result["answer"]`가 빈 문자열 — fallback 안내 문구 표시
+
+### 데이터 타입 불일치
+- `bloom_label`은 한글(`"지식"`, `"이해"` 등)로 반환됨 — Chat.py `BLOOM_BADGE`, Insight.py 차트 레이블 모두 한글 기준으로 일치 확인 완료
+- `perspective`는 영문 키(`"concept"` 등)로 반환됨 — Insight.py 집계 시 영문→한글 변환이 필요하면 `PERSPECTIVE_TITLES` 활용
+
+---
+
+## 체크리스트
 
 ### app.py
 - [ ] 기존 `subject` 키 초기화 코드를 `subject_id`, `subject_label`로 교체 (하위 호환 주의)
@@ -210,3 +240,7 @@ for key, value in defaults.items():
 - [ ] `bloom_label`이 한글(`"지식"` 등)로 저장됨을 전제로 차트 레이블 구성
 - [ ] 기존 `st.session_state.subject` 사이드바 표시를 `subject_label`로 교체
 - [ ] 데이터 없을 때(`has_data == False`) 더미 데이터가 아닌 안내 문구만 표시되는지 확인
+
+---
+
+## 구현 기록
