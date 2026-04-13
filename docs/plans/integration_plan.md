@@ -69,6 +69,7 @@ payload = {
     "question": user_input,
     "subject_id": st.session_state.subject_id,
     "selected_perspective": st.session_state.perspective or "auto",
+    [//] 해당 perspective을 가져오는게 하는게. streamlit chat 화면에 있는 질문 입력 칸 바로 위에 있는 개념, 원리, 비유, 관계, 활용, 주의사항 라디오 버튼들 중 하나를 클릭했을 때, 해당 관점으로 세팅되는게 맞는지 확인해줘. 그리고 이게 streamlit에는 개념,원리 이런 식으로 한글로 되어있는데, 영어나 관점 label? 로 전달 되어야 하지 않나? core에는 관점에 한글명이 없을텐데. 확인해줘.
     "interests": st.session_state.get("interests", []),
     "chat_history": [
         {"role": m["role"], "content": m["content"]}
@@ -90,6 +91,7 @@ st.session_state.messages.append({
     "perspective": result.get("perspective"),
     "bloom_level": result.get("bloom_level"),
     "bloom_label": result.get("bloom_label"),
+    [//] 이것도 내가 알기로,, core에서는 영어명으로 bloom단계 세팅이 되어 있을텐데, 아닌가? 이거 문제없나? 이거 한글로 저장되는지 영어로 저장되는지 한번 확인해줘.
     "improvement_tip": result.get("improvement_tip"),
     "citations": result.get("citations", []),
     "error_code": result.get("error_code"),
