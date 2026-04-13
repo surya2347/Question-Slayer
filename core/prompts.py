@@ -294,7 +294,6 @@ PROMPT_BLOOM_SCORING = """\
 {{
     "level": [1~6 정수],
     "name_ko": "[지식|이해|응용|분석|종합|평가]",
-    "name_en": "[Knowledge|Comprehension|Application|Analysis|Synthesis|Evaluation]",
     "evidence": "[이 질문이 해당 단계인 이유 1~2문장]",
     "keywords_found": ["[질문에서 발견된 키워드]"],
     "confidence": [0.0~1.0 소수]
