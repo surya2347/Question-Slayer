@@ -428,16 +428,14 @@ def build_fallback_answer(
             f"[{subject} | {PERSPECTIVE_TITLES.get(perspective, '학습 설명')}]\n"
             f"질문: {question}\n\n"
             "검색된 학습 자료를 바탕으로 보면 다음 내용을 우선 참고할 수 있습니다.\n"
-            f"{preview}\n\n"
-            f"학습 팁: {improvement_tip or '핵심 용어와 조건을 함께 질문하면 더 정확한 답을 받을 수 있습니다.'}"
+            f"{preview}"
         )
 
     return (
         f"[{subject} | {PERSPECTIVE_TITLES.get(perspective, '학습 설명')}]\n"
         f"질문: {question}\n\n"
         "현재 검색된 학습 컨텍스트가 없어 일반적인 설명만 제공할 수 있습니다. "
-        "정확도를 높이려면 과목을 다시 확인하고, 핵심 키워드나 상황을 더 구체적으로 적어주세요.\n\n"
-        f"학습 팁: {improvement_tip or '예: 어떤 상황에서 쓰는지, 무엇과 비교할지까지 함께 적어보세요.'}"
+        "정확도를 높이려면 과목을 다시 확인하고, 핵심 키워드나 상황을 더 구체적으로 적어주세요."
     )
 
 

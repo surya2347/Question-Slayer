@@ -174,7 +174,6 @@ st.set_page_config(...)
 
 | 날짜 | 항목 | 상태 | 비고 |
 |------|------|------|------|
-| - | `app.py` load_dotenv 추가 | ⏳ Not Started | 환경변수 로드 |
-| - | `build_fallback_answer` 학습 팁 행 제거 | ⏳ Not Started | 중복 방지 |
-| - | `finalize_response_node` 수정 | ⏳ Not Started | 정상/오류 경로 팁 붙이기 |
-| - | `finalize_response_node` 수정 | ⏳ Not Started | 정상/오류/중복 방지 |
+| 2026-04-13 | `app.py` load_dotenv 추가 | ✅ Done | 이전 커밋에서 적용 완료 |
+| 2026-04-13 | `build_fallback_answer` 학습 팁 행 제거 | ✅ Done | 두 return 경로 모두 제거 |
+| 2026-04-13 | `finalize_response_node` 수정 | ✅ Done | 정상/오류 경로 팁 붙이기, 이전 커밋에서 적용 완료 |
