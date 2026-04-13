@@ -125,31 +125,25 @@ with col_left:
         counts = [count_map.get(lv, 0) for lv in levels]
         labels = [f"Lv{lv} {BLOOM_LEVELS[lv]['name_ko']}" for lv in levels]
         colors = ["#1e88e5", "#43a047", "#fb8c00", "#e53935", "#8e24aa", "#00897b"]
+
+        fig_bar = go.Figure(go.Bar(
+            x=labels,
+            y=counts,
+            marker_color=colors,
+            text=counts,
+            textposition="outside",
+        ))
+        fig_bar.update_layout(
+            height=300,
+            margin=dict(l=20, r=20, t=20, b=20),
+            yaxis=dict(title="질문 수", dtick=1),
+            xaxis=dict(tickangle=-20),
+            showlegend=False,
+            plot_bgcolor="white",
+        )
+        st.plotly_chart(fig_bar, use_container_width=True, config={"displayModeBar": False})
     else:
-        # 더미 데이터
-        labels = [f"Lv{lv} {BLOOM_LEVELS[lv]['name_ko']}" for lv in range(1, 7)]
-        counts = [5, 4, 3, 2, 1, 1]
-        colors = ["#1e88e5", "#43a047", "#fb8c00", "#e53935", "#8e24aa", "#00897b"]
-
-    fig_bar = go.Figure(go.Bar(
-        x=labels,
-        y=counts,
-        marker_color=colors,
-        text=counts,
-        textposition="outside",
-    ))
-    fig_bar.update_layout(
-        height=300,
-        margin=dict(l=20, r=20, t=20, b=20),
-        yaxis=dict(title="질문 수", dtick=1),
-        xaxis=dict(tickangle=-20),
-        showlegend=False,
-        plot_bgcolor="white",
-    )
-    st.plotly_chart(fig_bar, use_container_width=True, config={"displayModeBar": False})
-
-    if not has_data:
-        st.caption("💡 Chat 페이지에서 질문하면 실제 데이터가 표시됩니다.")
+        st.info("💡 Chat 페이지에서 질문하면 Bloom 단계 분포가 표시됩니다.", icon=None)
 
 # ── 오른쪽: 질문 수준 성장 곡선 ─────────────────────────────
 with col_right:
